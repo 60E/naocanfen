@@ -31,8 +31,13 @@ CTxMemPool mempool;
 unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
-uint256 hashGenesisBlock("0x12a765e31ffd4059bada1e25190f6e98c99d9714d334efa41a195a7e7e04bfe2");
-static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20); // Litecoin: starting difficulty is 1 / 2^12
+// org
+//uint256 hashGenesisBlock("0x12a765e31ffd4059bada1e25190f6e98c99d9714d334efa41a195a7e7e04bfe2");
+uint256 hashGenesisBlock("0xa219a05b1623c8f71d573ec00cd66b3274b4fd22f2311e5bb73f6a7c1503383c");
+// yueye
+static CBigNum bnProofOfWorkLimit(~uint256(0) >> 16); // Litecoin: starting difficulty is 1 / 2^16
+
+//static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20); // Litecoin: starting difficulty is 1 / 2^12
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 uint256 nBestChainWork = 0;
@@ -1071,8 +1076,11 @@ int64 static GetBlockValue(int nHeight, int64 nFees)
     return nSubsidy + nFees;
 }
 
-static const int64 nTargetTimespan = 3.5 * 24 * 60 * 60; // Litecoin: 3.5 days
-static const int64 nTargetSpacing = 2.5 * 60; // Litecoin: 2.5 minutes
+// yueye
+//static const int64 nTargetTimespan = 3.5 * 24 * 60 * 60; // Litecoin: 3.5 days
+//static const int64 nTargetSpacing = 2.5 * 60; // Litecoin: 2.5 minutes
+static const int64 nTargetTimespan = 1 * 4 * 60; //  
+static const int64 nTargetSpacing = 1 * 60; //  1 minutes
 static const int64 nInterval = nTargetTimespan / nTargetSpacing;
 
 //
@@ -2736,7 +2744,9 @@ bool LoadBlockIndex()
 }
 
 
+bool genGenesisBlock() ;
 bool InitBlockIndex() {
+    //return genGenesisBlock();
     // Check whether we're already initialized
     if (pindexGenesisBlock != NULL)
         return true;
@@ -2756,7 +2766,8 @@ bool InitBlockIndex() {
         //   vMerkleTree: 97ddfbbae6
 
         // Genesis block
-        const char* pszTimestamp = "NY Times 05/Oct/2011 Steve Jobs, Apple’s Visionary, Dies at 56";
+        //const char* pszTimestamp = "NY Times 05/Oct/2011 Steve Jobs, Apple’s Visionary, Dies at 56";
+        const char* pszTimestamp = "Hybrid coin project start!";
         CTransaction txNew;
         txNew.vin.resize(1);
         txNew.vout.resize(1);
@@ -2768,9 +2779,13 @@ bool InitBlockIndex() {
         block.hashPrevBlock = 0;
         block.hashMerkleRoot = block.BuildMerkleTree();
         block.nVersion = 1;
-        block.nTime    = 1317972665;
-        block.nBits    = 0x1e0ffff0;
-        block.nNonce   = 2084524493;
+        // yueye
+        //block.nTime    = 1317972665;
+        //block.nBits    = 0x1e0ffff0;
+        //block.nNonce   = 2084524493;
+        block.nTime    = 1390399360;
+        block.nBits    = 0x1F00FFFF;
+        block.nNonce   = 17290;
 
         if (fTestNet)
         {
@@ -2783,7 +2798,7 @@ bool InitBlockIndex() {
         printf("%s\n", hash.ToString().c_str());
         printf("%s\n", hashGenesisBlock.ToString().c_str());
         printf("%s\n", block.hashMerkleRoot.ToString().c_str());
-        assert(block.hashMerkleRoot == uint256("0x97ddfbbae6be97fd6cdf3e7ca13232a3afff2353e29badfab7f73011edd4ced9"));
+        //assert(block.hashMerkleRoot == uint256("0x97ddfbbae6be97fd6cdf3e7ca13232a3afff2353e29badfab7f73011edd4ced9"));
         block.print();
         assert(hash == hashGenesisBlock);
 
@@ -4551,8 +4566,9 @@ void static LitecoinMiner(CWallet *pwallet)
     unsigned int nExtraNonce = 0;
 
     try { loop {
-        while (vNodes.empty())
-            MilliSleep(1000);
+        // yueye
+        //while (vNodes.empty())
+            //MilliSleep(1000);
 
         //
         // Create new block
@@ -4656,8 +4672,8 @@ void static LitecoinMiner(CWallet *pwallet)
 
             // Check for stop or if block needs to be rebuilt
             boost::this_thread::interruption_point();
-            if (vNodes.empty())
-                break;
+            //if (vNodes.empty())
+                //break;
             if (pblock->nNonce >= 0xffff0000)
                 break;
             if (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 60)
@@ -4705,6 +4721,89 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
     for (int i = 0; i < nThreads; i++)
         minerThreads->create_thread(boost::bind(&LitecoinMiner, pwallet));
 }
+
+// yueye
+bool genGenesisBlock() {
+    printf("genGenesisBlock\n");
+    const char* pszTimestamp = "Hybrid coin project start!";
+    CTransaction txNew;
+    txNew.vin.resize(1);
+    txNew.vout.resize(1);
+    txNew.vin[0].scriptSig = CScript() << 486604799 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
+    txNew.vout[0].nValue = 50 * COIN;
+    txNew.vout[0].scriptPubKey = CScript() << ParseHex("040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9") << OP_CHECKSIG;
+    CBlock block;
+    block.vtx.push_back(txNew);
+    block.hashPrevBlock = 0;
+    block.hashMerkleRoot = block.BuildMerkleTree();
+    block.nVersion = 1;
+    //block.nTime    = 1317972665;
+    block.nTime    = GetAdjustedTime();
+    //block.nBits    = 0x1e0ffff0;
+    block.nBits    = bnProofOfWorkLimit.GetCompact();
+    block.nNonce   = 0;
+
+    //int64 nStart = GetTime();
+    uint256 hashTarget = CBigNum().SetCompact(block.nBits).getuint256();
+    // bnProofOfWorkLimit
+    uint256 hash = block.GetHash();
+    //printf("0x%02X\n", block.nBits);
+    //printf("%d\n", block.nNonce);
+    //printf("%s\n", hash.ToString().c_str());
+
+    loop
+    {
+        unsigned int nHashesDone = 0;
+        bool founded = false;
+
+        uint256 thash;
+        char scratchpad[SCRYPT_SCRATCHPAD_SIZE];
+        loop
+        {
+#if defined(USE_SSE2)
+            // Detection would work, but in cases where we KNOW it always has SSE2,
+            // it is faster to use directly than to use a function pointer or conditional.
+#if defined(_M_X64) || defined(__x86_64__) || defined(_M_AMD64) || (defined(MAC_OSX) && defined(__i386__))
+            // Always SSE2: x86_64 or Intel MacOS X
+            scrypt_1024_1_1_256_sp_sse2(BEGIN(block.nVersion), BEGIN(thash), scratchpad);
+#else
+            // Detect SSE2: 32bit x86 Linux or Windows
+            scrypt_1024_1_1_256_sp(BEGIN(block.nVersion), BEGIN(thash), scratchpad);
+#endif
+#else
+            // Generic scrypt
+            scrypt_1024_1_1_256_sp_generic(BEGIN(block.nVersion), BEGIN(thash), scratchpad);
+#endif
+
+            if (thash <= hashTarget)
+            {
+                printf("Found a solution\n");
+                founded = true;
+                break;
+            }
+            block.nNonce += 1;
+            nHashesDone += 1;
+            if ((block.nNonce & 0xFF) == 0)
+                break;
+
+        }
+        if ( founded )
+            break;
+    }
+
+    hash = block.GetHash();
+
+    printf("%d\n", block.nTime);
+    printf("0x%02X\n", block.nBits);
+    printf("%d\n", block.nNonce);
+    printf("%s\n", hash.ToString().c_str());
+    printf("%s\n", hashGenesisBlock.ToString().c_str());
+    printf("%s\n", block.hashMerkleRoot.ToString().c_str());
+    block.print();
+
+    return false;
+}
+
 
 // Amount compression:
 // * If the amount is 0, output 0
