@@ -1482,7 +1482,9 @@ public:
         }
 
         // Check the header
-        if (!CheckProofOfWork(GetPoWHash(), nBits))
+        // yueye
+        //if (!CheckProofOfWork(GetPoWHash(), nBits))
+        if (!CheckProofOfWork(GetPoWHash(), nBits) && !CheckProofOfWork(GetHash(), nBits))
             return error("CBlock::ReadFromDisk() : errors in block header");
 
         return true;
