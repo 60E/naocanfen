@@ -1277,6 +1277,11 @@ public:
 class CBlockHeader
 {
 public:
+    static const int BLOCK_TYPE_MAX_SHIFT = 29;
+    static const int BLOCK_TYPE_MAX = 1 << 29;
+    static const int BLOCK_TYPE_SHA256 = 0;
+    static const int BLOCK_TYPE_SCRYPT = 1;
+    
     // header
     static const int CURRENT_VERSION=2;
     int nVersion;
@@ -1285,6 +1290,11 @@ public:
     unsigned int nTime;
     unsigned int nBits;
     unsigned int nNonce;
+    int nType;
+    int nSHA256Base;
+    int nScryptBase;
+    int nReserve0;
+    int nReserve1;
 
     CBlockHeader()
     {
@@ -1300,6 +1310,11 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
+        READWRITE(nType);
+        READWRITE(nSHA256Base);
+        READWRITE(nScryptBase);
+        READWRITE(nReserve0);
+        READWRITE(nReserve1);
     )
 
     void SetNull()
@@ -1310,6 +1325,11 @@ public:
         nTime = 0;
         nBits = 0;
         nNonce = 0;
+        nType = 0;
+        nSHA256Base = 0;
+        nScryptBase = 0;
+        nReserve0 = 0;
+        nReserve1 = 0;
     }
 
     bool IsNull() const
@@ -1319,7 +1339,7 @@ public:
 
     uint256 GetHash() const
     {
-        return Hash(BEGIN(nVersion), END(nNonce));
+        return Hash(BEGIN(nVersion), END(nReserve1));
     }
 
     int64 GetBlockTime() const
@@ -1379,6 +1399,11 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
+        block.nType     = nType;
+        block.nSHA256Base     = nSHA256Base;
+        block.nScryptBase = nScryptBase;
+        block.nReserve0 = nReserve0;
+        block.nReserve1     = nReserve1;
         return block;
     }
 
@@ -1494,14 +1519,14 @@ public:
 
     void print() const
     {
-        printf("CBlock(hash=%s, input=%s, PoW=%s, ver=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%"PRIszu")\n",
+        printf("CBlock(hash=%s, input=%s, PoW=%s, ver=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, type=%d, sha256base=%d, scryptbase=%d, vtx=%"PRIszu")\n",
             GetHash().ToString().c_str(),
             HexStr(BEGIN(nVersion),BEGIN(nVersion)+80,false).c_str(),
             GetPoWHash().ToString().c_str(),
             nVersion,
             hashPrevBlock.ToString().c_str(),
             hashMerkleRoot.ToString().c_str(),
-            nTime, nBits, nNonce,
+            nTime, nBits, nNonce,nType, nSHA256Base, nScryptBase,
             vtx.size());
         for (unsigned int i = 0; i < vtx.size(); i++)
         {
@@ -1667,6 +1692,11 @@ public:
     unsigned int nTime;
     unsigned int nBits;
     unsigned int nNonce;
+    int nType;
+    int nSHA256Base;
+    int nScryptBase;
+    int nReserve0;
+    int nReserve1;
 
 
     CBlockIndex()
@@ -1688,6 +1718,12 @@ public:
         nTime          = 0;
         nBits          = 0;
         nNonce         = 0;
+        
+        nType         = 0;
+        nSHA256Base = 0;
+        nScryptBase = 0;
+        nReserve0 = 0;
+        nReserve1 = 0;
     }
 
     CBlockIndex(CBlockHeader& block)
@@ -1709,6 +1745,12 @@ public:
         nTime          = block.nTime;
         nBits          = block.nBits;
         nNonce         = block.nNonce;
+        nType         = block.nType;
+        nSHA256Base = block.nSHA256Base;
+        nScryptBase = block.nScryptBase;
+        nReserve0 = block.nReserve0;
+        nReserve1 = block.nReserve1;
+
     }
 
     CDiskBlockPos GetBlockPos() const {
@@ -1739,6 +1781,11 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
+        block.nType = nType;
+        block.nSHA256Base = nSHA256Base;
+        block.nScryptBase = nScryptBase;
+        block.nReserve0 = nReserve0;
+        block.nReserve1 = nReserve1;
         return block;
     }
 
@@ -1810,10 +1857,10 @@ public:
 
     std::string ToString() const
     {
-        return strprintf("CBlockIndex(pprev=%p, pnext=%p, nHeight=%d, merkle=%s, hashBlock=%s)",
+        return strprintf("CBlockIndex(pprev=%p, pnext=%p, nHeight=%d, merkle=%s, hashBlock=%s, type=%d, sha256base=%d, scryptbase=%d)",
             pprev, pnext, nHeight,
             hashMerkleRoot.ToString().c_str(),
-            GetBlockHash().ToString().c_str());
+            GetBlockHash().ToString().c_str(), nType, nSHA256Base, nScryptBase);
     }
 
     void print() const
@@ -1873,6 +1920,11 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
+        READWRITE(nType);
+        READWRITE(nSHA256Base);
+        READWRITE(nScryptBase);
+        READWRITE(nReserve0);
+        READWRITE(nReserve1);
     )
 
     uint256 GetBlockHash() const
@@ -1884,6 +1936,11 @@ public:
         block.nTime           = nTime;
         block.nBits           = nBits;
         block.nNonce          = nNonce;
+        block.nType = nType;
+        block.nSHA256Base = nSHA256Base;
+        block.nScryptBase = nScryptBase;
+        block.nReserve0 = nReserve0;
+        block.nReserve1 = nReserve1;
         return block.GetHash();
     }
 

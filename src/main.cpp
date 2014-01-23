@@ -38,7 +38,9 @@ map<uint256, CBlockIndex*> mapBlockIndex;
 // yueye scrypt
 //uint256 hashGenesisBlock("0xa219a05b1623c8f71d573ec00cd66b3274b4fd22f2311e5bb73f6a7c1503383c");
 // sha256
-uint256 hashGenesisBlock("0000b71d44ab7214d3ebd1f86f75327cfcfc8b27d946244053651d4059087303");
+//uint256 hashGenesisBlock("0000b71d44ab7214d3ebd1f86f75327cfcfc8b27d946244053651d4059087303");
+// sha256 new
+uint256 hashGenesisBlock("000003baae9f8565a04f5c66321619052782e1a2cd76ceab73b32f5ff5ebec04");
 
 static CBigNum bnProofOfWorkLimit(~uint256(0) >> 16); // Litecoin: starting difficulty is 1 / 2^16
 
@@ -1189,11 +1191,13 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits)
 
     // Check range
     if (bnTarget <= 0 || bnTarget > bnProofOfWorkLimit)
-        return error("CheckProofOfWork() : nBits below minimum work");
+        return false;
+        //return error("CheckProofOfWork() : nBits below minimum work");
 
     // Check proof of work matches claimed amount
     if (hash > bnTarget.getuint256())
-        return error("CheckProofOfWork() : hash doesn't match nBits");
+        return false;
+        //return error("CheckProofOfWork() : hash doesn't match nBits");
 
     return true;
 }
@@ -2797,12 +2801,6 @@ bool InitBlockIndex() {
         block.nTime    = 1390399360;
         block.nBits    = 0x1F00FFFF;
         block.nNonce   = 17290;
-
-        if (fTestNet)
-        {
-            block.nTime    = 1317798646;
-            block.nNonce   = 385270584;
-        }
 #else
         //const char* pszTimestamp = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";
         const char* pszTimestamp = "Hybrid coin project start!";
@@ -2817,15 +2815,14 @@ bool InitBlockIndex() {
         block.hashPrevBlock = 0;
         block.hashMerkleRoot = block.BuildMerkleTree();
         block.nVersion = 1;
-        block.nTime    = 1390465887;
+        block.nTime    = 1390498222;
         block.nBits    = 0x1F00FFFF;
-        block.nNonce   = 101712128;
-
-        if (fTestNet)
-        {
-            block.nTime    = 1296688602;
-            block.nNonce   = 414098458;
-        }
+        block.nNonce   = 857766;
+        block.nType   = 0;
+        block.nSHA256Base = CBlockHeader::BLOCK_TYPE_MAX >> 4;
+        block.nScryptBase = CBlockHeader::BLOCK_TYPE_MAX - block.nSHA256Base;
+        block.nReserve0   = 0;
+        block.nReserve1   = 0;
 #endif
 
         //// debug print
@@ -4557,6 +4554,11 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
             unsigned int nTime;
             unsigned int nBits;
             unsigned int nNonce;
+            int nType;
+            int nSHA256Base;
+            int nScryptBase;
+            int nReserve0;
+            int nReserve1;
         }
         block;
         unsigned char pchPadding0[64];
@@ -4572,6 +4574,11 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
     tmp.block.nTime          = pblock->nTime;
     tmp.block.nBits          = pblock->nBits;
     tmp.block.nNonce         = pblock->nNonce;
+    tmp.block.nType         = pblock->nType;
+    tmp.block.nSHA256Base         = pblock->nSHA256Base;
+    tmp.block.nScryptBase         = pblock->nScryptBase;
+    tmp.block.nReserve0         = pblock->nReserve0;
+    tmp.block.nReserve1         = pblock->nReserve1;
 
     FormatHashBlocks(&tmp.block, sizeof(tmp.block));
     FormatHashBlocks(&tmp.hash1, sizeof(tmp.hash1));
@@ -4831,6 +4838,7 @@ void static BitcoinMiner(CWallet *pwallet)
         loop
         {
             unsigned int nHashesDone = 0;
+#if 0        
             unsigned int nNonceFound;
 
             // Crypto++ SHA256
@@ -4855,7 +4863,25 @@ void static BitcoinMiner(CWallet *pwallet)
                     break;
                 }
             }
+#else
+            loop
+            {
+                pblock->nNonce += 1;
+                nHashesDone += 1;
+                uint256 hash = pblock->GetHash();
+                if (hash <= hashTarget)
+                {
+                    // Found a solution
+                    SetThreadPriority(THREAD_PRIORITY_NORMAL);
+                    CheckWork(pblock, *pwalletMain, reservekey);
+                    SetThreadPriority(THREAD_PRIORITY_LOWEST);
+                    break;
+                }
+                if ((pblock->nNonce & 0xFF) == 0)
+                    break;
+            }
 
+#endif
 
             // Meter hashes/sec
             static int64 nHashCounter;
@@ -5023,7 +5049,7 @@ bool genGenesisBlock() {
     return false;
 }
 
-bool genGenesisBlockSHA256() {
+bool genGenesisBlockSHA256org() {
     printf("genGenesisBlock\n");
     const char* pszTimestamp = "Hybrid coin project start!";
     CTransaction txNew;
@@ -5101,6 +5127,57 @@ bool genGenesisBlockSHA256() {
     return false;
 }
 
+bool genGenesisBlockSHA256() {
+    printf("genGenesisBlock\n");
+    const char* pszTimestamp = "Hybrid coin project start!";
+    CTransaction txNew;
+    txNew.vin.resize(1);
+    txNew.vout.resize(1);
+    txNew.vin[0].scriptSig = CScript() << 486604799 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
+    txNew.vout[0].nValue = 50 * COIN;
+    txNew.vout[0].scriptPubKey = CScript() << ParseHex("040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9") << OP_CHECKSIG;
+    CBlock block;
+    block.vtx.push_back(txNew);
+    block.hashPrevBlock = 0;
+    block.hashMerkleRoot = block.BuildMerkleTree();
+    block.nVersion = 1;
+    //block.nTime    = 1317972665;
+    block.nTime    = GetAdjustedTime();
+    //block.nBits    = 0x1e0ffff0;
+    block.nBits    = bnProofOfWorkLimit.GetCompact();
+    block.nNonce   = 0;
+    block.nType = CBlockHeader::BLOCK_TYPE_SHA256;
+    block.nSHA256Base = CBlockHeader::BLOCK_TYPE_MAX >> 4;
+    block.nScryptBase = CBlockHeader::BLOCK_TYPE_MAX - block.nSHA256Base;
+    block.nReserve0 = 0;
+    block.nReserve1 = 0;
+
+    CBigNum bnNew = (CBigNum().SetCompact(block.nBits) * block.nSHA256Base) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
+    uint256 hashTarget = bnNew.getuint256();
+
+    loop
+    {
+        block.nNonce += 1;
+        uint256 hash = block.GetHash();
+        if (hash <= hashTarget)
+        {
+            // Found a solution
+            break;
+        }
+    }
+
+    uint256 hash1 = block.GetHash();
+
+    printf("%d\n", block.nTime);
+    printf("0x%02X\n", block.nBits);
+    printf("%d\n", block.nNonce);
+    printf("%s\n", hash1.ToString().c_str());
+    printf("%s\n", hashGenesisBlock.ToString().c_str());
+    printf("%s\n", block.hashMerkleRoot.ToString().c_str());
+    block.print();
+
+    return false;
+}
 // Amount compression:
 // * If the amount is 0, output 0
 // * first, divide the amount (in base units) by the largest power of 10 possible; call the exponent e (e is max 9)
