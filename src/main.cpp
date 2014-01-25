@@ -1115,6 +1115,29 @@ unsigned int ComputeMinWork(unsigned int nBase, int64 nTime)
     return bnResult.GetCompact();
 }
 
+void static UpdateNextWorkBase(const CBlockIndex* pindexLast, CBlockHeader *pblock)
+{
+    int n;
+    if ( pindexLast->nScryptBase > (CBlockHeader::BLOCK_TYPE_MAX >> 1) )
+        n = pindexLast->nSHA256Base >> 3;
+    else
+        n = pindexLast->nScryptBase >> 3;
+        
+    if ( CBlockHeader::BLOCK_TYPE_SCRYPT == pindexLast->nBlockType )
+    {
+        pblock->nScryptBase = pindexLast->nScryptBase - n;
+        pblock->nSHA256Base = CBlockHeader::BLOCK_TYPE_MAX - pblock->nScryptBase;
+    }
+    else
+    {
+        pblock->nSHA256Base = pindexLast->nSHA256Base - n;
+        pblock->nScryptBase = CBlockHeader::BLOCK_TYPE_MAX - pblock->nSHA256Base;
+    }
+
+    pblock->nReserve0 = pindexLast->nReserve0;
+    pblock->nReserve1 = pindexLast->nReserve1;
+}
+
 unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock)
 {
     unsigned int nProofOfWorkLimit = bnProofOfWorkLimit.GetCompact();
@@ -1184,10 +1207,9 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
     return bnNew.GetCompact();
 }
 
-bool CheckProofOfWork(uint256 hash, unsigned int nBits)
+bool CheckProofOfWork(uint256 hash, unsigned int nBits, int base)
 {
-    CBigNum bnTarget;
-    bnTarget.SetCompact(nBits);
+    CBigNum bnTarget = (CBigNum().SetCompact(nBits) * base) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
 
     // Check range
     if (bnTarget <= 0 || bnTarget > bnProofOfWorkLimit)
@@ -1196,7 +1218,11 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits)
 
     // Check proof of work matches claimed amount
     if (hash > bnTarget.getuint256())
+    {
+        printf("hash %s\n", hash.ToString().c_str());
+        printf("target %s\n", bnTarget.getuint256().ToString().c_str());
         return false;
+    }
         //return error("CheckProofOfWork() : hash doesn't match nBits");
 
     return true;
@@ -2113,8 +2139,7 @@ bool CBlock::CheckBlock(CValidationState &state, bool fCheckPOW, bool fCheckMerk
 
     // Check proof of work matches claimed amount
     // yueye
-    //if (fCheckPOW && !CheckProofOfWork(GetPoWHash(), nBits) )
-    if (fCheckPOW && !CheckProofOfWork(GetPoWHash(), nBits) && !CheckProofOfWork(GetHash(), nBits))
+    if (fCheckPOW && !CheckProofOfWork(GetPoWHash(), nBits, GetPoWBase()))
         return state.DoS(50, error("CheckBlock() : proof of work failed"));
 
     // Check timestamp
@@ -2818,7 +2843,7 @@ bool InitBlockIndex() {
         block.nTime    = 1390498222;
         block.nBits    = 0x1F00FFFF;
         block.nNonce   = 857766;
-        block.nType   = 0;
+        block.nBlockType   = 0;
         block.nSHA256Base = CBlockHeader::BLOCK_TYPE_MAX >> 4;
         block.nScryptBase = CBlockHeader::BLOCK_TYPE_MAX - block.nSHA256Base;
         block.nReserve0   = 0;
@@ -4495,6 +4520,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
         pblock->UpdateTime(pindexPrev);
         pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock);
+        UpdateNextWorkBase(pindexPrev, pblock);
         pblock->nNonce         = 0;
         pblock->vtx[0].vin[0].scriptSig = CScript() << OP_0 << OP_0;
         pblocktemplate->vTxSigOps[0] = pblock->vtx[0].GetLegacySigOpCount();
@@ -4554,7 +4580,7 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
             unsigned int nTime;
             unsigned int nBits;
             unsigned int nNonce;
-            int nType;
+            int nBlockType;
             int nSHA256Base;
             int nScryptBase;
             int nReserve0;
@@ -4574,7 +4600,7 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
     tmp.block.nTime          = pblock->nTime;
     tmp.block.nBits          = pblock->nBits;
     tmp.block.nNonce         = pblock->nNonce;
-    tmp.block.nType         = pblock->nType;
+    tmp.block.nBlockType         = pblock->nBlockType;
     tmp.block.nSHA256Base         = pblock->nSHA256Base;
     tmp.block.nScryptBase         = pblock->nScryptBase;
     tmp.block.nReserve0         = pblock->nReserve0;
@@ -4598,17 +4624,11 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
 bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 {
     // yueye
-    //uint256 hash = pblock->GetPoWHash();
-    uint256 hashPow = pblock->GetPoWHash();
-    uint256 hash = pblock->GetHash();
-    uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+    uint256 hash = pblock->GetPoWHash();
+    CBigNum bnNew = (CBigNum().SetCompact(pblock->nBits) * pblock->GetPoWBase()) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
+    uint256 hashTarget = bnNew.getuint256();
 
-// yueye
-    //if (hash > hashTarget)
-    //    return false;
-    if (hashPow <= hashTarget)
-        hash = hashPow;
-    else if (hash > hashTarget)
+    if (hash > hashTarget)
         return false;
 
     //// debug print
@@ -4667,6 +4687,7 @@ void static LitecoinMiner(CWallet *pwallet)
             return;
         CBlock *pblock = &pblocktemplate->block;
         IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
+        pblock->nBlockType = CBlockHeader::BLOCK_TYPE_SCRYPT;
 
         printf("Running LitecoinMiner with %"PRIszu" transactions in block (%u bytes)\n", pblock->vtx.size(),
                ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
@@ -4689,7 +4710,10 @@ void static LitecoinMiner(CWallet *pwallet)
         // Search
         //
         int64 nStart = GetTime();
-        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+        //uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+        CBigNum bnNew = (CBigNum().SetCompact(pblock->nBits) * pblock->nScryptBase) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
+        uint256 hashTarget = bnNew.getuint256();
+        
         loop
         {
             unsigned int nHashesDone = 0;
@@ -4811,6 +4835,7 @@ void static BitcoinMiner(CWallet *pwallet)
             return;
         CBlock *pblock = &pblocktemplate->block;
         IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
+        pblock->nBlockType = CBlockHeader::BLOCK_TYPE_SHA256;
 
         printf("Running BitcoinMiner with %"PRIszu" transactions in block (%u bytes)\n", pblock->vtx.size(),
                ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
@@ -4832,7 +4857,12 @@ void static BitcoinMiner(CWallet *pwallet)
         // Search
         //
         int64 nStart = GetTime();
-        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+        //uint256 hashTarget1 = CBigNum().SetCompact(pblock->nBits).getuint256();
+        //printf("hashTarget total %s\n", hashTarget1.ToString().c_str());
+        CBigNum bnNew = (CBigNum().SetCompact(pblock->nBits) * pblock->nSHA256Base) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
+        uint256 hashTarget = bnNew.getuint256();
+        //printf("hashTarget sha256 %s\n", hashTarget.ToString().c_str());
+        
         uint256 hashbuf[2];
         uint256& hash = *alignup<16>(hashbuf);
         loop
@@ -4961,94 +4991,14 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
 
     minerThreads = new boost::thread_group();
     for (int i = 0; i < nThreads; i++){
-        // yueye
-        //minerThreads->create_thread(boost::bind(&LitecoinMiner, pwallet));
-        minerThreads->create_thread(boost::bind(&BitcoinMiner, pwallet));
+        if ( i % 2 )
+            minerThreads->create_thread(boost::bind(&LitecoinMiner, pwallet));
+        else
+            minerThreads->create_thread(boost::bind(&BitcoinMiner, pwallet));
     }
 }
 
 // yueye
-bool genGenesisBlock() {
-    printf("genGenesisBlock\n");
-    const char* pszTimestamp = "Hybrid coin project start!";
-    CTransaction txNew;
-    txNew.vin.resize(1);
-    txNew.vout.resize(1);
-    txNew.vin[0].scriptSig = CScript() << 486604799 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-    txNew.vout[0].nValue = 50 * COIN;
-    txNew.vout[0].scriptPubKey = CScript() << ParseHex("040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9") << OP_CHECKSIG;
-    CBlock block;
-    block.vtx.push_back(txNew);
-    block.hashPrevBlock = 0;
-    block.hashMerkleRoot = block.BuildMerkleTree();
-    block.nVersion = 1;
-    //block.nTime    = 1317972665;
-    block.nTime    = GetAdjustedTime();
-    //block.nBits    = 0x1e0ffff0;
-    block.nBits    = bnProofOfWorkLimit.GetCompact();
-    block.nNonce   = 0;
-
-    //int64 nStart = GetTime();
-    uint256 hashTarget = CBigNum().SetCompact(block.nBits).getuint256();
-    // bnProofOfWorkLimit
-    uint256 hash = block.GetHash();
-    //printf("0x%02X\n", block.nBits);
-    //printf("%d\n", block.nNonce);
-    //printf("%s\n", hash.ToString().c_str());
-
-    loop
-    {
-        unsigned int nHashesDone = 0;
-        bool founded = false;
-
-        uint256 thash;
-        char scratchpad[SCRYPT_SCRATCHPAD_SIZE];
-        loop
-        {
-#if defined(USE_SSE2)
-            // Detection would work, but in cases where we KNOW it always has SSE2,
-            // it is faster to use directly than to use a function pointer or conditional.
-#if defined(_M_X64) || defined(__x86_64__) || defined(_M_AMD64) || (defined(MAC_OSX) && defined(__i386__))
-            // Always SSE2: x86_64 or Intel MacOS X
-            scrypt_1024_1_1_256_sp_sse2(BEGIN(block.nVersion), BEGIN(thash), scratchpad);
-#else
-            // Detect SSE2: 32bit x86 Linux or Windows
-            scrypt_1024_1_1_256_sp(BEGIN(block.nVersion), BEGIN(thash), scratchpad);
-#endif
-#else
-            // Generic scrypt
-            scrypt_1024_1_1_256_sp_generic(BEGIN(block.nVersion), BEGIN(thash), scratchpad);
-#endif
-
-            if (thash <= hashTarget)
-            {
-                printf("Found a solution\n");
-                founded = true;
-                break;
-            }
-            block.nNonce += 1;
-            nHashesDone += 1;
-            if ((block.nNonce & 0xFF) == 0)
-                break;
-
-        }
-        if ( founded )
-            break;
-    }
-
-    hash = block.GetHash();
-
-    printf("%d\n", block.nTime);
-    printf("0x%02X\n", block.nBits);
-    printf("%d\n", block.nNonce);
-    printf("%s\n", hash.ToString().c_str());
-    printf("%s\n", hashGenesisBlock.ToString().c_str());
-    printf("%s\n", block.hashMerkleRoot.ToString().c_str());
-    block.print();
-
-    return false;
-}
-
 bool genGenesisBlockSHA256org() {
     printf("genGenesisBlock\n");
     const char* pszTimestamp = "Hybrid coin project start!";
@@ -5146,7 +5096,7 @@ bool genGenesisBlockSHA256() {
     //block.nBits    = 0x1e0ffff0;
     block.nBits    = bnProofOfWorkLimit.GetCompact();
     block.nNonce   = 0;
-    block.nType = CBlockHeader::BLOCK_TYPE_SHA256;
+    block.nBlockType = CBlockHeader::BLOCK_TYPE_SHA256;
     block.nSHA256Base = CBlockHeader::BLOCK_TYPE_MAX >> 4;
     block.nScryptBase = CBlockHeader::BLOCK_TYPE_MAX - block.nSHA256Base;
     block.nReserve0 = 0;

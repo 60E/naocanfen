@@ -170,7 +170,7 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
 /** Check mined block */
 bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey);
 /** Check whether a block hash satisfies the proof-of-work requirement specified by nBits */
-bool CheckProofOfWork(uint256 hash, unsigned int nBits);
+bool CheckProofOfWork(uint256 hash, unsigned int nBits, int base);
 /** Calculate the minimum amount of work a received block needs, without knowing its direct parent */
 unsigned int ComputeMinWork(unsigned int nBase, int64 nTime);
 /** Get the number of active peers */
@@ -1277,10 +1277,11 @@ public:
 class CBlockHeader
 {
 public:
+    static const int BLOCK_HEADER_LEN = 100;
     static const int BLOCK_TYPE_MAX_SHIFT = 29;
     static const int BLOCK_TYPE_MAX = 1 << 29;
     static const int BLOCK_TYPE_SHA256 = 0;
-    static const int BLOCK_TYPE_SCRYPT = 1;
+    static const int BLOCK_TYPE_SCRYPT = 111;
     
     // header
     static const int CURRENT_VERSION=2;
@@ -1290,7 +1291,7 @@ public:
     unsigned int nTime;
     unsigned int nBits;
     unsigned int nNonce;
-    int nType;
+    int nBlockType;
     int nSHA256Base;
     int nScryptBase;
     int nReserve0;
@@ -1310,7 +1311,7 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
-        READWRITE(nType);
+        READWRITE(nBlockType);
         READWRITE(nSHA256Base);
         READWRITE(nScryptBase);
         READWRITE(nReserve0);
@@ -1325,7 +1326,7 @@ public:
         nTime = 0;
         nBits = 0;
         nNonce = 0;
-        nType = 0;
+        nBlockType = 0;
         nSHA256Base = 0;
         nScryptBase = 0;
         nReserve0 = 0;
@@ -1383,11 +1384,30 @@ public:
         vMerkleTree.clear();
     }
 
+    int GetPoWBase() const
+    {
+        if ( CBlockHeader::BLOCK_TYPE_SCRYPT == nBlockType )
+        {
+            return nScryptBase;
+        }
+        else
+        {
+            return nSHA256Base;
+        }
+    }
+
     uint256 GetPoWHash() const
     {
-        uint256 thash;
-        scrypt_1024_1_1_256(BEGIN(nVersion), BEGIN(thash));
-        return thash;
+        if ( CBlockHeader::BLOCK_TYPE_SCRYPT == nBlockType )
+        {
+            uint256 thash;
+            scrypt_1024_1_1_256(BEGIN(nVersion), BEGIN(thash));
+            return thash;
+        }
+        else
+        {
+            return GetHash();
+        }
     }
 
     CBlockHeader GetBlockHeader() const
@@ -1399,7 +1419,7 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
-        block.nType     = nType;
+        block.nBlockType     = nBlockType;
         block.nSHA256Base     = nSHA256Base;
         block.nScryptBase = nScryptBase;
         block.nReserve0 = nReserve0;
@@ -1508,8 +1528,7 @@ public:
 
         // Check the header
         // yueye
-        //if (!CheckProofOfWork(GetPoWHash(), nBits))
-        if (!CheckProofOfWork(GetPoWHash(), nBits) && !CheckProofOfWork(GetHash(), nBits))
+        if (!CheckProofOfWork(GetPoWHash(), nBits, GetPoWBase()))
             return error("CBlock::ReadFromDisk() : errors in block header");
 
         return true;
@@ -1521,12 +1540,12 @@ public:
     {
         printf("CBlock(hash=%s, input=%s, PoW=%s, ver=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, type=%d, sha256base=%d, scryptbase=%d, vtx=%"PRIszu")\n",
             GetHash().ToString().c_str(),
-            HexStr(BEGIN(nVersion),BEGIN(nVersion)+80,false).c_str(),
+            HexStr(BEGIN(nVersion),BEGIN(nVersion)+CBlockHeader::BLOCK_HEADER_LEN, false).c_str(),
             GetPoWHash().ToString().c_str(),
             nVersion,
             hashPrevBlock.ToString().c_str(),
             hashMerkleRoot.ToString().c_str(),
-            nTime, nBits, nNonce,nType, nSHA256Base, nScryptBase,
+            nTime, nBits, nNonce,nBlockType, nSHA256Base, nScryptBase,
             vtx.size());
         for (unsigned int i = 0; i < vtx.size(); i++)
         {
@@ -1692,7 +1711,7 @@ public:
     unsigned int nTime;
     unsigned int nBits;
     unsigned int nNonce;
-    int nType;
+    int nBlockType;
     int nSHA256Base;
     int nScryptBase;
     int nReserve0;
@@ -1719,7 +1738,7 @@ public:
         nBits          = 0;
         nNonce         = 0;
         
-        nType         = 0;
+        nBlockType         = 0;
         nSHA256Base = 0;
         nScryptBase = 0;
         nReserve0 = 0;
@@ -1745,7 +1764,7 @@ public:
         nTime          = block.nTime;
         nBits          = block.nBits;
         nNonce         = block.nNonce;
-        nType         = block.nType;
+        nBlockType         = block.nBlockType;
         nSHA256Base = block.nSHA256Base;
         nScryptBase = block.nScryptBase;
         nReserve0 = block.nReserve0;
@@ -1781,7 +1800,7 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
-        block.nType = nType;
+        block.nBlockType = nBlockType;
         block.nSHA256Base = nSHA256Base;
         block.nScryptBase = nScryptBase;
         block.nReserve0 = nReserve0;
@@ -1860,7 +1879,7 @@ public:
         return strprintf("CBlockIndex(pprev=%p, pnext=%p, nHeight=%d, merkle=%s, hashBlock=%s, type=%d, sha256base=%d, scryptbase=%d)",
             pprev, pnext, nHeight,
             hashMerkleRoot.ToString().c_str(),
-            GetBlockHash().ToString().c_str(), nType, nSHA256Base, nScryptBase);
+            GetBlockHash().ToString().c_str(), nBlockType, nSHA256Base, nScryptBase);
     }
 
     void print() const
@@ -1920,7 +1939,7 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
-        READWRITE(nType);
+        READWRITE(nBlockType);
         READWRITE(nSHA256Base);
         READWRITE(nScryptBase);
         READWRITE(nReserve0);
@@ -1936,7 +1955,7 @@ public:
         block.nTime           = nTime;
         block.nBits           = nBits;
         block.nNonce          = nNonce;
-        block.nType = nType;
+        block.nBlockType = nBlockType;
         block.nSHA256Base = nSHA256Base;
         block.nScryptBase = nScryptBase;
         block.nReserve0 = nReserve0;
