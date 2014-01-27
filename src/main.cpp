@@ -1123,7 +1123,8 @@ void static UpdateNextWorkBase(const CBlockIndex* pindexLast, CBlockHeader *pblo
     else
         n = pindexLast->nScryptBase >> 3;
         
-    if ( CBlockHeader::BLOCK_TYPE_SCRYPT == pindexLast->nBlockType )
+    if ( CBlockHeader::BLOCK_TYPE_SCRYPT == pindexLast->nBlockType 
+        || CBlockHeader::BLOCK_TYPE_SCRYPT_AUX == pindexLast->nBlockType )
     {
         pblock->nScryptBase = pindexLast->nScryptBase - n;
         pblock->nSHA256Base = CBlockHeader::BLOCK_TYPE_MAX - pblock->nScryptBase;
