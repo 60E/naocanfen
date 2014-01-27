@@ -1836,8 +1836,9 @@ void static Discover()
 #endif
 
     // Don't use external IPv4 discovery, when -onlynet="IPv6"
-    if (!IsLimited(NET_IPV4))
-        NewThread(ThreadGetMyExternalIP, NULL);
+    // yueye
+    //if (!IsLimited(NET_IPV4))
+        //NewThread(ThreadGetMyExternalIP, NULL);
 }
 
 void StartNode(boost::thread_group& threadGroup)

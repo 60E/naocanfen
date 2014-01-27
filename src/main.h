@@ -1274,6 +1274,7 @@ public:
  * in the block is a special one that creates a new coin owned by the creator
  * of the block.
  */
+ #include "auxpow.h"
 class CBlockHeader
 {
 public:
@@ -1281,7 +1282,9 @@ public:
     static const int BLOCK_TYPE_MAX_SHIFT = 29;
     static const int BLOCK_TYPE_MAX = 1 << 29;
     static const int BLOCK_TYPE_SHA256 = 0;
-    static const int BLOCK_TYPE_SCRYPT = 111;
+    static const int BLOCK_TYPE_SCRYPT = 1;
+    static const int BLOCK_TYPE_SHA256_AUX = 256;
+    static const int BLOCK_TYPE_SCRYPT_AUX = 257;
     
     // header
     static const int CURRENT_VERSION=2;
@@ -1296,6 +1299,8 @@ public:
     int nScryptBase;
     int nReserve0;
     int nReserve1;
+
+    CAuxPow vAuxPow;
 
     CBlockHeader()
     {
@@ -1316,6 +1321,7 @@ public:
         READWRITE(nScryptBase);
         READWRITE(nReserve0);
         READWRITE(nReserve1);
+        READWRITE(vAuxPow);
     )
 
     void SetNull()
@@ -1384,9 +1390,19 @@ public:
         vMerkleTree.clear();
     }
 
+    bool isAuxBlock() const
+    {
+        if ( CBlockHeader::BLOCK_TYPE_SCRYPT_AUX == nBlockType
+            ||  CBlockHeader::BLOCK_TYPE_SHA256_AUX== nBlockType)
+            return true;
+
+        return false;
+    }
+
     int GetPoWBase() const
     {
-        if ( CBlockHeader::BLOCK_TYPE_SCRYPT == nBlockType )
+        if ( CBlockHeader::BLOCK_TYPE_SCRYPT == nBlockType
+            || CBlockHeader::BLOCK_TYPE_SCRYPT_AUX == nBlockType )
         {
             return nScryptBase;
         }
@@ -1401,8 +1417,13 @@ public:
         if ( CBlockHeader::BLOCK_TYPE_SCRYPT == nBlockType )
         {
             uint256 thash;
-            scrypt_1024_1_1_256(BEGIN(nVersion), BEGIN(thash));
+            scrypt_1024_1_1_256(BEGIN(nVersion), CBlockHeader::BLOCK_HEADER_LEN, BEGIN(thash));
             return thash;
+        }
+        else if ( CBlockHeader::BLOCK_TYPE_SHA256_AUX == nBlockType
+            || CBlockHeader::BLOCK_TYPE_SCRYPT_AUX == nBlockType )
+        {
+            return vAuxPow.GetPoWHash(nBlockType);
         }
         else
         {
@@ -1528,6 +1549,9 @@ public:
 
         // Check the header
         // yueye
+        if ( isAuxBlock() && !vAuxPow.Check(GetHash(), 0))
+            return error("CBlock::ReadFromDisk() : AUX POW is not valid");
+        
         if (!CheckProofOfWork(GetPoWHash(), nBits, GetPoWBase()))
             return error("CBlock::ReadFromDisk() : errors in block header");
 
