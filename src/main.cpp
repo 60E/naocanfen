@@ -40,7 +40,7 @@ map<uint256, CBlockIndex*> mapBlockIndex;
 // sha256
 //uint256 hashGenesisBlock("0000b71d44ab7214d3ebd1f86f75327cfcfc8b27d946244053651d4059087303");
 // sha256 new
-uint256 hashGenesisBlock("000003baae9f8565a04f5c66321619052782e1a2cd76ceab73b32f5ff5ebec04");
+uint256 hashGenesisBlock("0000006e198b1858060a6303cf40d7da16c73a4b10fcf2d265165a0ad837aa2c");
 
 static CBigNum bnProofOfWorkLimit(~uint256(0) >> 16); // Litecoin: starting difficulty is 1 / 2^16
 
@@ -2857,15 +2857,17 @@ bool InitBlockIndex() {
         block.vtx.push_back(txNew);
         block.hashPrevBlock = 0;
         block.hashMerkleRoot = block.BuildMerkleTree();
-        block.nVersion = 1;
-        block.nTime    = 1390498222;
+        block.nVersion = 2;
+        block.nTime    = 1390816956;
         block.nBits    = 0x1F00FFFF;
-        block.nNonce   = 857766;
+        block.nNonce   = 59521690;
         block.nBlockType   = 0;
-        block.nSHA256Base = CBlockHeader::BLOCK_TYPE_MAX >> 4;
+        block.nSHA256Base = CBlockHeader::BLOCK_TYPE_MAX >> 9;
         block.nScryptBase = CBlockHeader::BLOCK_TYPE_MAX - block.nSHA256Base;
         block.nReserve0   = 0;
         block.nReserve1   = 0;
+        // hash 0000006e198b1858060a6303cf40d7da16c73a4b10fcf2d265165a0ad837aa2c
+        // hashMerkleRoot 6340809ddf949159ba09d7999279e34d74d255679719ac82d0bbc6a095ae1b28
 #endif
 
         //// debug print
@@ -5423,14 +5425,12 @@ bool genGenesisBlockSHA256() {
     block.vtx.push_back(txNew);
     block.hashPrevBlock = 0;
     block.hashMerkleRoot = block.BuildMerkleTree();
-    block.nVersion = 1;
-    //block.nTime    = 1317972665;
+    block.nVersion = 2;
     block.nTime    = GetAdjustedTime();
-    //block.nBits    = 0x1e0ffff0;
     block.nBits    = bnProofOfWorkLimit.GetCompact();
     block.nNonce   = 0;
     block.nBlockType = CBlockHeader::BLOCK_TYPE_SHA256;
-    block.nSHA256Base = CBlockHeader::BLOCK_TYPE_MAX >> 4;
+    block.nSHA256Base = CBlockHeader::BLOCK_TYPE_MAX >> 9;
     block.nScryptBase = CBlockHeader::BLOCK_TYPE_MAX - block.nSHA256Base;
     block.nReserve0 = 0;
     block.nReserve1 = 0;

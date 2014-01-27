@@ -1279,8 +1279,8 @@ class CBlockHeader
 {
 public:
     static const int BLOCK_HEADER_LEN = 100;
-    static const int BLOCK_TYPE_MAX_SHIFT = 29;
-    static const int BLOCK_TYPE_MAX = 1 << 29;
+    static const int BLOCK_TYPE_MAX_SHIFT = 30;
+    static const int BLOCK_TYPE_MAX = 1 << 30;
     static const int BLOCK_TYPE_SHA256 = 0;
     static const int BLOCK_TYPE_SCRYPT = 1;
     static const int BLOCK_TYPE_SHA256_AUX = 256;
@@ -1294,11 +1294,11 @@ public:
     unsigned int nTime;
     unsigned int nBits;
     unsigned int nNonce;
-    int nBlockType;
-    int nSHA256Base;
-    int nScryptBase;
-    int nReserve0;
-    int nReserve1;
+    unsigned int nBlockType;
+    unsigned int nSHA256Base;
+    unsigned int nScryptBase;
+    unsigned int nReserve0;
+    unsigned int nReserve1;
 
     CAuxPow vAuxPow;
 
@@ -1735,11 +1735,11 @@ public:
     unsigned int nTime;
     unsigned int nBits;
     unsigned int nNonce;
-    int nBlockType;
-    int nSHA256Base;
-    int nScryptBase;
-    int nReserve0;
-    int nReserve1;
+    unsigned int nBlockType;
+    unsigned int nSHA256Base;
+    unsigned int nScryptBase;
+    unsigned int nReserve0;
+    unsigned int nReserve1;
 
 
     CBlockIndex()
