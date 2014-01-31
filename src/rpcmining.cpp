@@ -411,6 +411,182 @@ Value getwork(const Array& params, bool fHelp)
     }
 }
 
+#if 0
+Value getworkaux(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1)
+        throw runtime_error(
+            "getworkaux <aux>\n"
+            "getworkaux '' <data>\n"
+            "getworkaux 'submit' <data>\n"
+            "getworkaux '' <data> <chain-index> <branch>*\n"
+            " get work with auxiliary data in coinbase, for multichain mining\n"
+            "<aux> is the merkle root of the auxiliary chain block hashes, concatenated with the aux chain merkle tree size and a nonce\n"
+            "<chain-index> is the aux chain index in the aux chain merkle tree\n"
+            "<branch> is the optional merkle branch of the aux chain\n"
+            "If <data> is not specified, returns formatted hash data to work on:\n"
+            "  \"midstate\" : precomputed hash state after hashing the first half of the data\n"
+            "  \"data\" : block data\n"
+            "  \"hash1\" : formatted hash buffer for second hash\n"
+            "  \"target\" : little endian hash target\n"
+            "If <data> is specified and 'submit', tries to solve the block for this (parent) chain and returns true if it was successful."
+            "If <data> is specified and empty first argument, returns the aux merkle root, with size and nonce."
+            "If <data> and <chain-index> are specified, creates an auxiliary proof of work for the chain specified and returns:\n"
+            "  \"aux\" : merkle root of auxiliary chain block hashes\n"
+            "  \"auxpow\" : aux proof of work to submit to aux chain\n"
+            );
+
+    if (vNodes.empty())
+        throw JSONRPCError(-9, "Bitcoin is not connected!");
+
+    if (IsInitialBlockDownload())
+        throw JSONRPCError(-10, "Bitcoin is downloading blocks...");
+
+    static map<uint256, pair<CBlock*, unsigned int> > mapNewBlock;
+    static vector<CBlock*> vNewBlock;
+    static CReserveKey reservekey(pwalletMain);
+
+    if (params.size() == 1)
+    {
+        static vector<unsigned char> vchAuxPrev;
+        vector<unsigned char> vchAux = ParseHex(params[0].get_str());
+
+        // Update block
+        static unsigned int nTransactionsUpdatedLast;
+        static CBlockIndex* pindexPrev;
+        static int64 nStart;
+        static CBlock* pblock;
+        if (pindexPrev != pindexBest ||
+            vchAux != vchAuxPrev ||
+            (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 60))
+        {
+            if (pindexPrev != pindexBest)
+            {
+                // Deallocate old blocks since they're obsolete now
+                mapNewBlock.clear();
+                BOOST_FOREACH(CBlock* pblock, vNewBlock)
+                    delete pblock;
+                vNewBlock.clear();
+            }
+            nTransactionsUpdatedLast = nTransactionsUpdated;
+            pindexPrev = pindexBest;
+            vchAuxPrev = vchAux;
+            nStart = GetTime();
+
+            // Create new block
+            pblock = CreateNewBlock(reservekey);
+            if (!pblock)
+                throw JSONRPCError(-7, "Out of memory");
+            vNewBlock.push_back(pblock);
+        }
+
+        // Update nTime
+        pblock->nTime = max(pindexPrev->GetMedianTimePast()+1, GetAdjustedTime());
+        pblock->nNonce = 0;
+
+        // Update nExtraNonce
+        static unsigned int nExtraNonce = 0;
+        static int64 nPrevTime = 0;
+        IncrementExtraNonceWithAux(pblock, pindexPrev, nExtraNonce, nPrevTime, vchAux);
+
+        // Save
+        mapNewBlock[pblock->hashMerkleRoot] = make_pair(pblock, nExtraNonce);
+
+        // Prebuild hash buffers
+        char pmidstate[32];
+        char pdata[128];
+        char phash1[64];
+        FormatHashBuffers(pblock, pmidstate, pdata, phash1);
+
+        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+
+        Object result;
+        result.push_back(Pair("midstate", HexStr(BEGIN(pmidstate), END(pmidstate))));
+        result.push_back(Pair("data",     HexStr(BEGIN(pdata), END(pdata))));
+        result.push_back(Pair("hash1",    HexStr(BEGIN(phash1), END(phash1))));
+        result.push_back(Pair("target",   HexStr(BEGIN(hashTarget), END(hashTarget))));
+        return result;
+    }
+    else
+    {
+        if (params[0].get_str() != "submit" && params[0].get_str() != "")
+            throw JSONRPCError(-8, "<aux> must be the empty string or 'submit' if work is being submitted");
+        // Parse parameters
+        vector<unsigned char> vchData = ParseHex(params[1].get_str());
+        if (vchData.size() != 128)
+            throw JSONRPCError(-8, "Invalid parameter");
+        CBlock* pdata = (CBlock*)&vchData[0];
+
+        // Byte reverse
+        for (int i = 0; i < 128/4; i++)
+            ((unsigned int*)pdata)[i] = CryptoPP::ByteReverse(((unsigned int*)pdata)[i]);
+
+        // Get saved block
+        if (!mapNewBlock.count(pdata->hashMerkleRoot))
+            return false;
+        CBlock* pblock = mapNewBlock[pdata->hashMerkleRoot].first;
+        unsigned int nExtraNonce = mapNewBlock[pdata->hashMerkleRoot].second;
+
+        pblock->nTime = pdata->nTime;
+        pblock->nNonce = pdata->nNonce;
+
+        // Get the aux merkle root from the coinbase
+        CScript script = pblock->vtx[0].vin[0].scriptSig;
+        opcodetype opcode;
+        CScript::const_iterator pc = script.begin();
+        script.GetOp(pc, opcode);
+        script.GetOp(pc, opcode);
+        script.GetOp(pc, opcode);
+        if (opcode != OP_2)
+            throw runtime_error("invalid aux pow script");
+        vector<unsigned char> vchAux;
+        script.GetOp(pc, opcode, vchAux);
+
+        RemoveMergedMiningHeader(vchAux);
+
+        pblock->vtx[0].vin[0].scriptSig = MakeCoinbaseWithAux(pblock->nBits, nExtraNonce, vchAux);
+        pblock->hashMerkleRoot = pblock->BuildMerkleTree();
+
+        if (params.size() > 2)
+        {
+            // Requested aux proof of work
+            int nChainIndex = params[2].get_int();
+
+            CAuxPow pow(pblock->vtx[0]);
+
+            for (int i = 3 ; i < params.size() ; i++)
+            {
+                uint256 nHash;
+                nHash.SetHex(params[i].get_str());
+                pow.vChainMerkleBranch.push_back(nHash);
+            }
+
+            pow.SetMerkleBranch(pblock);
+            pow.nChainIndex = nChainIndex;
+            pow.parentBlock = *pblock;
+            CDataStream ss(SER_GETHASH|SER_BLOCKHEADERONLY);
+            ss << pow;
+            Object result;
+            result.push_back(Pair("auxpow", HexStr(ss.begin(), ss.end())));
+            return result;
+        }
+        else
+        {
+            if (params[0].get_str() == "submit")
+            {
+                return CheckWork(pblock, *pwalletMain, reservekey);
+            }
+            else
+            {
+                Object result;
+                result.push_back(Pair("aux", HexStr(vchAux.begin(), vchAux.end())));
+                result.push_back(Pair("hash", pblock->GetHash().GetHex()));
+                return result;
+            }
+        }
+    }
+}
+#endif
 
 Value getblocktemplate(const Array& params, bool fHelp)
 {
@@ -555,6 +731,10 @@ Value getblocktemplate(const Array& params, bool fHelp)
     result.push_back(Pair("sizelimit", (int64_t)MAX_BLOCK_SIZE));
     result.push_back(Pair("curtime", (int64_t)pblock->nTime));
     result.push_back(Pair("bits", HexBits(pblock->nBits)));
+    result.push_back(Pair("sha256base", (int64_t)pblock->nSHA256Base));
+    result.push_back(Pair("scryptbase", (int64_t)pblock->nScryptBase));
+    result.push_back(Pair("reserve0", (int64_t)pblock->nReserve0));
+    result.push_back(Pair("reserve1", (int64_t)pblock->nReserve1));
     result.push_back(Pair("height", (int64_t)(pindexPrev->nHeight+1)));
 
     return result;
