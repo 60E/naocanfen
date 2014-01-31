@@ -1077,8 +1077,8 @@ int64 static GetBlockValue(int nHeight, int64 nFees)
 {
     int64 nSubsidy = 50 * COIN;
 
-    // Subsidy is cut in half every 840000 blocks, which will occur approximately every 4 years
-    nSubsidy >>= (nHeight / 840000); // Litecoin: 840k blocks in ~4 years
+    // Subsidy is cut in half every 500000 blocks, which will occur approximately every 2 years
+    nSubsidy >>= (nHeight / 840000); // Litecoin: 500k blocks in ~2 years
 
     return nSubsidy + nFees;
 }
@@ -1086,8 +1086,8 @@ int64 static GetBlockValue(int nHeight, int64 nFees)
 // yueye
 //static const int64 nTargetTimespan = 3.5 * 24 * 60 * 60; // Litecoin: 3.5 days
 //static const int64 nTargetSpacing = 2.5 * 60; // Litecoin: 2.5 minutes
-static const int64 nTargetTimespan = 1 * 4 * 60; //  
-static const int64 nTargetSpacing = 1 * 60; //  1 minutes
+static const int64 nTargetTimespan = 4 * 60; //  
+static const int64 nTargetSpacing = 1 * 60; //  2 minutes
 static const int64 nInterval = nTargetTimespan / nTargetSpacing;
 
 //
@@ -5039,7 +5039,7 @@ void static BitcoinMiner(CWallet *pwallet)
         loop
         {
             unsigned int nHashesDone = 0;
-#if 0        
+#if 1        
             unsigned int nNonceFound;
 
             // Crypto++ SHA256
@@ -5330,98 +5330,19 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
         if ( i % 2 )
             minerThreads->create_thread(boost::bind(&LitecoinMinerAux, pwallet));
         else
-            minerThreads->create_thread(boost::bind(&BitcoinMinerAux, pwallet));
+            minerThreads->create_thread(boost::bind(&BitcoinMiner, pwallet));
     }
-}
-
-// yueye
-bool genGenesisBlockSHA256org() {
-    printf("genGenesisBlock\n");
-    const char* pszTimestamp = "Hybrid coin project start!";
-    CTransaction txNew;
-    txNew.vin.resize(1);
-    txNew.vout.resize(1);
-    txNew.vin[0].scriptSig = CScript() << 486604799 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-    txNew.vout[0].nValue = 50 * COIN;
-    txNew.vout[0].scriptPubKey = CScript() << ParseHex("040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9") << OP_CHECKSIG;
-    CBlock block;
-    block.vtx.push_back(txNew);
-    block.hashPrevBlock = 0;
-    block.hashMerkleRoot = block.BuildMerkleTree();
-    block.nVersion = 1;
-    //block.nTime    = 1317972665;
-    block.nTime    = GetAdjustedTime();
-    //block.nBits    = 0x1e0ffff0;
-    block.nBits    = bnProofOfWorkLimit.GetCompact();
-    block.nNonce   = 0;
-
-    char pmidstatebuf[32+16]; char* pmidstate = alignup<16>(pmidstatebuf);
-    char pdatabuf[128+16];    char* pdata     = alignup<16>(pdatabuf);
-    char phash1buf[64+16];    char* phash1    = alignup<16>(phash1buf);
-
-    FormatHashBuffers(&block, pmidstate, pdata, phash1);
-
-    unsigned int& nBlockTime = *(unsigned int*)(pdata + 64 + 4);
-    unsigned int& nBlockBits = *(unsigned int*)(pdata + 64 + 8);
-    //unsigned int& nBlockNonce = *(unsigned int*)(pdata + 64 + 12);
-
-    uint256 hashTarget = CBigNum().SetCompact(block.nBits).getuint256();
-    uint256 hashbuf[2];
-    uint256& hash = *alignup<16>(hashbuf);
-
-    loop
-    {
-        unsigned int nHashesDone = 0;
-        bool founded = false;
-        unsigned int nNonceFound;
-
-        // Crypto++ SHA256
-        nNonceFound = ScanHash_CryptoPP(pmidstate, pdata + 64, phash1,
-                                        (char*)&hash, nHashesDone);
-
-        // Check if something found
-        if (nNonceFound != (unsigned int) -1)
-        {
-            for (unsigned int i = 0; i < sizeof(hash)/4; i++)
-                ((unsigned int*)&hash)[i] = ByteReverse(((unsigned int*)&hash)[i]);
-
-            if (hash <= hashTarget)
-            {
-                // Found a solution
-                block.nNonce = ByteReverse(nNonceFound);
-                assert(hash == block.GetHash());
-                founded = true;
-                break;
-            }
-        }
-
-
-        if ( founded )
-            break;
-    }
-
-    uint256 hash1 = block.GetHash();
-
-    printf("%d\n", block.nTime);
-    printf("0x%02X\n", block.nBits);
-    printf("%d\n", block.nNonce);
-    printf("%s\n", hash1.ToString().c_str());
-    printf("%s\n", hashGenesisBlock.ToString().c_str());
-    printf("%s\n", block.hashMerkleRoot.ToString().c_str());
-    block.print();
-
-    return false;
 }
 
 bool genGenesisBlockSHA256() {
     printf("genGenesisBlock\n");
-    const char* pszTimestamp = "Hybrid coin project start!";
+    const char* pszTimestamp = "Fusioncoin project start!";
     CTransaction txNew;
     txNew.vin.resize(1);
     txNew.vout.resize(1);
     txNew.vin[0].scriptSig = CScript() << 486604799 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-    txNew.vout[0].nValue = 50 * COIN;
-    txNew.vout[0].scriptPubKey = CScript() << ParseHex("040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9") << OP_CHECKSIG;
+    txNew.vout[0].nValue = 100 * COIN;
+    txNew.vout[0].scriptPubKey = CScript() << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f") << OP_CHECKSIG;
     CBlock block;
     block.vtx.push_back(txNew);
     block.hashPrevBlock = 0;
