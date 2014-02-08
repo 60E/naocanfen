@@ -214,7 +214,7 @@ int main(int argc, char *argv[])
 #endif
 
     SplashScreen splash(QPixmap(), 0);
-    if (GetBoolArg("-splash", true) && !GetBoolArg("-min"))
+    if (GetBoolArg("-splash", false) && !GetBoolArg("-min"))
     {
         splash.show();
         splash.setAutoFillBackground(true);
