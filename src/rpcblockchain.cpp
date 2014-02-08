@@ -63,6 +63,9 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex)
     result.push_back(Pair("bits", HexBits(block.nBits)));
     result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
 
+    result.push_back(Pair("SHA256Base", (boost::int64_t)block.nSHA256Base));
+    result.push_back(Pair("ScryptBase", (boost::int64_t)block.nScryptBase));
+
     if (blockindex->pprev)
         result.push_back(Pair("previousblockhash", blockindex->pprev->GetBlockHash().GetHex()));
     if (blockindex->pnext)
