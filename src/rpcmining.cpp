@@ -223,6 +223,12 @@ Value getworkex(const Array& params, bool fHelp)
         pblock->UpdateTime(pindexPrev);
         pblock->nNonce = 0;
 
+        std::string strCmd = GetArg("-miningalgo", "sha256");
+        if ( 0 == strCmd.compare("scrypt") )
+            pblock->nBlockType = CBlockHeader::BLOCK_TYPE_SCRYPT;
+        else
+            pblock->nBlockType = CBlockHeader::BLOCK_TYPE_SHA256;
+
         // Update nExtraNonce
         static unsigned int nExtraNonce = 0;
         IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
@@ -236,7 +242,14 @@ Value getworkex(const Array& params, bool fHelp)
         char phash1[64];
         FormatHashBuffers(pblock, pmidstate, pdata, phash1);
 
-        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+        CBigNum bnNew;
+        if ( CBlockHeader::BLOCK_TYPE_SHA256 == pblock->nBlockType)
+            bnNew = (CBigNum().SetCompact(pblock->nBits) * pblock->nSHA256Base) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
+        else
+            bnNew = (CBigNum().SetCompact(pblock->nBits) * pblock->nScryptBase) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
+
+        uint256 hashTarget = bnNew.getuint256();
+        //uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
 
         CTransaction coinbaseTx = pblock->vtx[0];
         std::vector<uint256> merkle = pblock->GetMerkleBranch(0);
@@ -381,7 +394,16 @@ Value getwork(const Array& params, bool fHelp)
         char phash1[64];
         FormatHashBuffers(pblock, pmidstate, pdata, phash1);
 
-        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+        CBigNum bnNew;
+        if ( CBlockHeader::BLOCK_TYPE_SHA256 == pblock->nBlockType)
+            bnNew = (CBigNum().SetCompact(pblock->nBits) * pblock->nSHA256Base) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
+        else
+            bnNew = (CBigNum().SetCompact(pblock->nBits) * pblock->nScryptBase) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
+
+        uint256 hashTarget = bnNew.getuint256();
+        //uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+        //printf("getwork hashTarget %s\n", hashTarget.ToString().c_str());
+        //pblock->print();
 
         Object result;
         result.push_back(Pair("midstate", HexStr(BEGIN(pmidstate), END(pmidstate)))); // deprecated
@@ -412,6 +434,8 @@ Value getwork(const Array& params, bool fHelp)
         pblock->vtx[0].vin[0].scriptSig = mapNewBlock[pdata->hashMerkleRoot].second;
         pblock->hashMerkleRoot = pblock->BuildMerkleTree();
 
+        //printf("getwork result \n");
+        //pblock->print();
         assert(pwalletMain != NULL);
         return CheckWork(pblock, *pwalletMain, *pMiningKey);
     }
