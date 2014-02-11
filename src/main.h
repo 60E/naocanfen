@@ -1284,7 +1284,7 @@ public:
     
     // header
     static const int VERSION_SHA256 = 2;
-    static const int VERSION_SCRYPT = (1 << 12) + 2;
+    static const int VERSION_SCRYPT = (1 << 12);
     static const int VERSION_AUX = (1 << 8);
     
     int nVersion;
@@ -1295,7 +1295,8 @@ public:
     unsigned int nNonce;
     // nSHA256Base
 
-    CAuxPow vAuxPow;
+    //CAuxPow vAuxPow;
+    boost::shared_ptr<CAuxPow> auxpow;
 
     CBlockHeader()
     {
@@ -1311,7 +1312,8 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
-        READWRITE(vAuxPow);
+        //READWRITE(vAuxPow);
+        nSerSize += ReadWriteAuxPow(s, auxpow, nType, nVersion, ser_action);
     )
 
     void SetNull()
@@ -1399,14 +1401,14 @@ public:
 
     bool isAuxBlock() const
     {
-        return CBlockHeader::VERSION_AUX & nVersion;
+        return (CBlockHeader::VERSION_AUX & nVersion) && (auxpow.get() != 0);
     }
 
     uint256 GetPoWHash() const
     {
         if ( isAuxBlock() )
         {
-            return vAuxPow.GetPoWHash(GetAlgo());
+            return auxpow.get()->GetPoWHash(GetAlgo());
         }
         else if ( CBlockHeader::VERSION_SCRYPT & nVersion )
         {
@@ -1533,25 +1535,25 @@ public:
 
         // Check the header
         // yueye
-        if ( isAuxBlock() && !vAuxPow.Check(GetHash(), 0))
+        if ( isAuxBlock() && !auxpow.get()->Check(GetHash(), 0))
             return error("CBlock::ReadFromDisk() : AUX POW is not valid");
         
         if (!CheckProofOfWork(GetPoWHash(), nBits, GetAlgo()))
+        {
+            print();
             return error("CBlock::ReadFromDisk() : errors in block header");
+        }
 
         return true;
     }
 
-
-
     void print() const
     {
-        printf("CBlock(version = %d, hash=%s, input=%s, PoW=%s, ver=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%"PRIszu")\n",
+        printf("CBlock(version = %d, hash=%s, input=%s, PoW=%s, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%"PRIszu")\n",
             nVersion, 
             GetHash().ToString().c_str(),
             HexStr(BEGIN(nVersion),BEGIN(nVersion)+CBlockHeader::BLOCK_HEADER_LEN, false).c_str(),
             GetPoWHash().ToString().c_str(),
-            nVersion,
             hashPrevBlock.ToString().c_str(),
             hashMerkleRoot.ToString().c_str(),
             nTime, nBits, nNonce, 
@@ -1567,6 +1569,7 @@ public:
         printf("\n");
     }
 
+    void SetAuxPow(CAuxPow* pow);
 
     /** Undo the effects of this block (with given index) on the UTXO set represented by coins.
      *  In case pfClean is provided, operation will try to be tolerant about errors, and *pfClean
@@ -1926,6 +1929,9 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
+
+        // unfinish
+        //ReadWriteAuxPow(s, auxpow, nType, this->nVersion, ser_action);
     )
 
     uint256 GetBlockHash() const

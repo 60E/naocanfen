@@ -315,8 +315,8 @@ Value getwork(const Array& params, bool fHelp)
             "  \"target\" : little endian hash target\n"
             "If [data] is specified, tries to solve the block and returns true if it was successful.");
 
-    if (vNodes.empty())
-        throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Fusioncoin is not connected!");
+    //if (vNodes.empty())
+        //throw JSONRPCError(RPC_CLIENT_NOT_CONNECTED, "Fusioncoin is not connected!");
 
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Fusioncoin is downloading blocks...");
@@ -398,6 +398,7 @@ Value getwork(const Array& params, bool fHelp)
     }
     else
     {
+        //printf("getwork result \n");
         // Parse parameters
         vector<unsigned char> vchData = ParseHex(params[0].get_str());
         if (vchData.size() != 128)
@@ -418,7 +419,6 @@ Value getwork(const Array& params, bool fHelp)
         pblock->vtx[0].vin[0].scriptSig = mapNewBlock[pdata->hashMerkleRoot].second;
         pblock->hashMerkleRoot = pblock->BuildMerkleTree();
 
-        //printf("getwork result \n");
         //pblock->print();
         assert(pwalletMain != NULL);
         return CheckWork(pblock, *pwalletMain, *pMiningKey);
@@ -676,7 +676,7 @@ Value getauxblock(const Array& params, bool fHelp)
             pblock->hashMerkleRoot = pblock->BuildMerkleTree();
 
             // Sets the version
-            //pblock->SetAuxPow(new CAuxPow());
+            pblock->SetAuxPow(new CAuxPow());
 
             // Save
             vNewBlockTemplate.push_back(pblocktemplate);
@@ -710,7 +710,9 @@ Value getauxblock(const Array& params, bool fHelp)
         
         vector<unsigned char> vchAuxPow = ParseHex(params[1].get_str());
         CDataStream ss(vchAuxPow, SER_GETHASH, PROTOCOL_VERSION);
-        ss >> pblock->vAuxPow;
+        CAuxPow* pow = new CAuxPow();
+        ss >> *pow;
+        pblock->SetAuxPow(pow);
 
         if (!CheckWork(pblock, *pwalletMain, *pMiningKey))
         {

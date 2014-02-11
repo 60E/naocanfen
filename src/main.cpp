@@ -1058,6 +1058,17 @@ bool CBlock::ReadFromDisk(const CBlockIndex* pindex)
     return true;
 }
 
+void CBlock::SetAuxPow(CAuxPow* pow)
+{
+    if (pow != NULL)
+    {
+        nVersion |= CBlockHeader::VERSION_AUX;
+    }
+    else
+        nVersion &= ~CBlockHeader::VERSION_AUX;
+    auxpow.reset(pow);
+}
+
 uint256 static GetOrphanRoot(const CBlockHeader* pblock)
 {
     // Work back to the first block in the orphan chain
@@ -2095,7 +2106,7 @@ bool CBlock::CheckBlock(CValidationState &state, bool fCheckPOW, bool fCheckMerk
     }
 
     // Check proof of work matches claimed amount
-    if ( fCheckPOW && isAuxBlock() && !vAuxPow.Check(GetHash(), 0))
+    if ( fCheckPOW && isAuxBlock() && !auxpow.get()->Check(GetHash(), 0))
         return state.DoS(50, error("CheckProofOfWork() : AUX POW is not valid"));
     
     if (fCheckPOW && !CheckProofOfWork(GetPoWHash(), nBits, GetAlgo()))
@@ -4831,13 +4842,15 @@ void static LitecoinMinerAux(CWallet *pwallet)
                 {
                     CMerkleTx vMerkleTx(pblock->vtx[0]);
                     vMerkleTx.SetMerkleBranch(pblock);
-                    pBlockAux->vAuxPow.mMerkleTx = vMerkleTx;
-                    pBlockAux->vAuxPow.vParentBlockHeader.nVersion = pblock->nVersion;
-                    pBlockAux->vAuxPow.vParentBlockHeader.hashPrevBlock = pblock->hashPrevBlock;
-                    pBlockAux->vAuxPow.vParentBlockHeader.hashMerkleRoot = pblock->hashMerkleRoot;
-                    pBlockAux->vAuxPow.vParentBlockHeader.nTime = pblock->nTime;
-                    pBlockAux->vAuxPow.vParentBlockHeader.nBits = pblock->nBits;
-                    pBlockAux->vAuxPow.vParentBlockHeader.nNonce = pblock->nNonce;
+                    CAuxPow* pow = new CAuxPow();
+                    pow->mMerkleTx = vMerkleTx;
+                    pow->vParentBlockHeader.nVersion = pblock->nVersion;
+                    pow->vParentBlockHeader.hashPrevBlock = pblock->hashPrevBlock;
+                    pow->vParentBlockHeader.hashMerkleRoot = pblock->hashMerkleRoot;
+                    pow->vParentBlockHeader.nTime = pblock->nTime;
+                    pow->vParentBlockHeader.nBits = pblock->nBits;
+                    pow->vParentBlockHeader.nNonce = pblock->nNonce;
+                    pBlockAux->SetAuxPow(pow);
                     // Found a solution
                     SetThreadPriority(THREAD_PRIORITY_NORMAL);
                     CheckWork(pBlockAux, *pwallet, reservekey);
@@ -5150,15 +5163,15 @@ void static BitcoinMinerAux(CWallet *pwallet)
                 {
                     CMerkleTx vMerkleTx(pblock->vtx[0]);
                     vMerkleTx.SetMerkleBranch(pblock);
-                    pBlockAux->vAuxPow.mMerkleTx = vMerkleTx;
-                    //CScript script = pBlockAux->vAuxPow.mMerkleTx.vin[0].scriptSig;
-                    //script.PrintHex();
-                    pBlockAux->vAuxPow.vParentBlockHeader.nVersion = pblock->nVersion;
-                    pBlockAux->vAuxPow.vParentBlockHeader.hashPrevBlock = pblock->hashPrevBlock;
-                    pBlockAux->vAuxPow.vParentBlockHeader.hashMerkleRoot = pblock->hashMerkleRoot;
-                    pBlockAux->vAuxPow.vParentBlockHeader.nTime = pblock->nTime;
-                    pBlockAux->vAuxPow.vParentBlockHeader.nBits = pblock->nBits;
-                    pBlockAux->vAuxPow.vParentBlockHeader.nNonce = pblock->nNonce;
+                    CAuxPow* pow = new CAuxPow();
+                    pow->mMerkleTx = vMerkleTx;
+                    pow->vParentBlockHeader.nVersion = pblock->nVersion;
+                    pow->vParentBlockHeader.hashPrevBlock = pblock->hashPrevBlock;
+                    pow->vParentBlockHeader.hashMerkleRoot = pblock->hashMerkleRoot;
+                    pow->vParentBlockHeader.nTime = pblock->nTime;
+                    pow->vParentBlockHeader.nBits = pblock->nBits;
+                    pow->vParentBlockHeader.nNonce = pblock->nNonce;
+                    pBlockAux->SetAuxPow(pow);
                     // Found a solution
                     SetThreadPriority(THREAD_PRIORITY_NORMAL);
                     CheckWork(pBlockAux, *pwalletMain, reservekey);
@@ -5249,9 +5262,9 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
     for (int i = 0; i < nThreads; i++){
         //minerThreads->create_thread(boost::bind(&BitcoinMinerAux, pwallet));
         if ( i % 2 )
-            minerThreads->create_thread(boost::bind(&LitecoinMinerAux, pwallet));
-        else
             minerThreads->create_thread(boost::bind(&BitcoinMinerAux, pwallet));
+        else
+            minerThreads->create_thread(boost::bind(&LitecoinMinerAux, pwallet));
     }
 }
 
