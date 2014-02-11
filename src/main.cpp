@@ -33,7 +33,7 @@ unsigned int nTransactionsUpdated = 0;
 map<uint256, CBlockIndex*> mapBlockIndex;
 uint256 hashGenesisBlock("00000be4a37d9da3b0094ec225c17af40c4e2d75091c76d918b59c47081db380");
 
-static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20); // Fusioncoin: starting difficulty is 1 / 2^16
+static CBigNum bnProofOfWorkLimit(~uint256(0) >> 16); // Fusioncoin: starting difficulty is 1 / 2^16
 //static CBigNum bnProofOfWorkLimit[2] = { CBigNum(~uint256(0) >> 24), CBigNum(~uint256(0) >> 16) };
 //static CBigNum bnInitialHashTarget[2] = { CBigNum(~uint256(0) >> 24), CBigNum(~uint256(0) >> 16) };
 
@@ -5259,13 +5259,23 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
         return;
 
     minerThreads = new boost::thread_group();
+#if 0
+    if ( nThreads == 1 )
+        minerThreads->create_thread(boost::bind(&BitcoinMiner, pwallet));
+    if ( nThreads == 2 )
+        minerThreads->create_thread(boost::bind(&BitcoinMinerAux, pwallet));
+    if ( nThreads == 3 )
+        minerThreads->create_thread(boost::bind(&LitecoinMiner, pwallet));
+    if ( nThreads == 4 )
+        minerThreads->create_thread(boost::bind(&LitecoinMinerAux, pwallet));
+#else
     for (int i = 0; i < nThreads; i++){
-        //minerThreads->create_thread(boost::bind(&BitcoinMinerAux, pwallet));
         if ( i % 2 )
-            minerThreads->create_thread(boost::bind(&BitcoinMinerAux, pwallet));
+            minerThreads->create_thread(boost::bind(&BitcoinMiner, pwallet));
         else
-            minerThreads->create_thread(boost::bind(&LitecoinMinerAux, pwallet));
+            minerThreads->create_thread(boost::bind(&LitecoinMiner, pwallet));
     }
+#endif
 }
 
 bool genGenesisBlockSHA256() {
