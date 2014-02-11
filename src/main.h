@@ -161,8 +161,8 @@ void ThreadScriptCheck();
 /** Run the miner threads */
 void GenerateBitcoins(bool fGenerate, CWallet* pwallet);
 /** Generate a new block, without valid proof-of-work */
-CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn);
-CBlockTemplate* CreateNewBlockWithKey(CReserveKey& reservekey);
+CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn, int algo);
+CBlockTemplate* CreateNewBlockWithKey(CReserveKey& reservekey, int algo);
 /** Modify the extranonce in a block */
 void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& nExtraNonce);
 /** Do mining precalculation */
@@ -170,7 +170,7 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
 /** Check mined block */
 bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey);
 /** Check whether a block hash satisfies the proof-of-work requirement specified by nBits */
-bool CheckProofOfWork(uint256 hash, unsigned int nBits, int base);
+bool CheckProofOfWork(uint256 hash, unsigned int nBits, int algo);
 /** Calculate the minimum amount of work a received block needs, without knowing its direct parent */
 unsigned int ComputeMinWork(unsigned int nBase, int64 nTime);
 /** Get the number of active peers */
@@ -1278,27 +1278,22 @@ public:
 class CBlockHeader
 {
 public:
-    static const int BLOCK_HEADER_LEN = 100;
-    static const int BLOCK_TYPE_MAX_SHIFT = 30;
-    static const int BLOCK_TYPE_MAX = 1 << 30;
-    static const int BLOCK_TYPE_SHA256 = 0;
-    static const int BLOCK_TYPE_SCRYPT = 1;
-    static const int BLOCK_TYPE_SHA256_AUX = 256;
-    static const int BLOCK_TYPE_SCRYPT_AUX = 257;
+    static const int BLOCK_HEADER_LEN = 80;
+    static const int BLOCK_ALGO_SHA256 = 0;
+    static const int BLOCK_ALGO_SCRYPT = 1;
     
     // header
-    static const int CURRENT_VERSION=2;
+    static const int VERSION_SHA256 = 2;
+    static const int VERSION_SCRYPT = (1 << 12) + 2;
+    static const int VERSION_AUX = (1 << 8);
+    
     int nVersion;
     uint256 hashPrevBlock;
     uint256 hashMerkleRoot;
     unsigned int nTime;
     unsigned int nBits;
     unsigned int nNonce;
-    unsigned int nBlockType;
-    unsigned int nSHA256Base;
-    unsigned int nScryptBase;
-    unsigned int nReserve0;
-    unsigned int nReserve1;
+    // nSHA256Base
 
     CAuxPow vAuxPow;
 
@@ -1316,27 +1311,39 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
-        READWRITE(nBlockType);
-        READWRITE(nSHA256Base);
-        READWRITE(nScryptBase);
-        READWRITE(nReserve0);
-        READWRITE(nReserve1);
         READWRITE(vAuxPow);
     )
 
     void SetNull()
     {
-        nVersion = CBlockHeader::CURRENT_VERSION;
+        nVersion = CBlockHeader::VERSION_SHA256;
         hashPrevBlock = 0;
         hashMerkleRoot = 0;
         nTime = 0;
         nBits = 0;
         nNonce = 0;
-        nBlockType = 0;
-        nSHA256Base = 0;
-        nScryptBase = 0;
-        nReserve0 = 0;
-        nReserve1 = 0;
+    }
+
+    static int GetBlockVersion(int algo)
+    {
+        static int versions[] = {CBlockHeader::VERSION_SHA256, CBlockHeader::VERSION_SCRYPT};
+        return versions[algo];
+    }
+    
+    static int GetBlockAlgo(int version)
+    {
+        if ( CBlockHeader::VERSION_SCRYPT & version )
+            return CBlockHeader::BLOCK_ALGO_SCRYPT;
+        else
+            return CBlockHeader::BLOCK_ALGO_SHA256;
+    }
+
+    int GetAlgo() const
+    {
+        if ( CBlockHeader::VERSION_SCRYPT & nVersion )
+            return CBlockHeader::BLOCK_ALGO_SCRYPT;
+        else
+            return CBlockHeader::BLOCK_ALGO_SHA256;
     }
 
     bool IsNull() const
@@ -1346,7 +1353,7 @@ public:
 
     uint256 GetHash() const
     {
-        return Hash(BEGIN(nVersion), END(nReserve1));
+        return Hash(BEGIN(nVersion), END(nNonce));
     }
 
     int64 GetBlockTime() const
@@ -1392,38 +1399,20 @@ public:
 
     bool isAuxBlock() const
     {
-        if ( CBlockHeader::BLOCK_TYPE_SCRYPT_AUX == nBlockType
-            ||  CBlockHeader::BLOCK_TYPE_SHA256_AUX== nBlockType)
-            return true;
-
-        return false;
-    }
-
-    int GetPoWBase() const
-    {
-        if ( CBlockHeader::BLOCK_TYPE_SCRYPT == nBlockType
-            || CBlockHeader::BLOCK_TYPE_SCRYPT_AUX == nBlockType )
-        {
-            return nScryptBase;
-        }
-        else
-        {
-            return nSHA256Base;
-        }
+        return CBlockHeader::VERSION_AUX & nVersion;
     }
 
     uint256 GetPoWHash() const
     {
-        if ( CBlockHeader::BLOCK_TYPE_SCRYPT == nBlockType )
+        if ( isAuxBlock() )
+        {
+            return vAuxPow.GetPoWHash(GetAlgo());
+        }
+        else if ( CBlockHeader::VERSION_SCRYPT & nVersion )
         {
             uint256 thash;
             scrypt_1024_1_1_256(BEGIN(nVersion), CBlockHeader::BLOCK_HEADER_LEN, BEGIN(thash));
             return thash;
-        }
-        else if ( CBlockHeader::BLOCK_TYPE_SHA256_AUX == nBlockType
-            || CBlockHeader::BLOCK_TYPE_SCRYPT_AUX == nBlockType )
-        {
-            return vAuxPow.GetPoWHash(nBlockType);
         }
         else
         {
@@ -1440,11 +1429,6 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
-        block.nBlockType     = nBlockType;
-        block.nSHA256Base     = nSHA256Base;
-        block.nScryptBase = nScryptBase;
-        block.nReserve0 = nReserve0;
-        block.nReserve1     = nReserve1;
         return block;
     }
 
@@ -1552,7 +1536,7 @@ public:
         if ( isAuxBlock() && !vAuxPow.Check(GetHash(), 0))
             return error("CBlock::ReadFromDisk() : AUX POW is not valid");
         
-        if (!CheckProofOfWork(GetPoWHash(), nBits, GetPoWBase()))
+        if (!CheckProofOfWork(GetPoWHash(), nBits, GetAlgo()))
             return error("CBlock::ReadFromDisk() : errors in block header");
 
         return true;
@@ -1562,14 +1546,15 @@ public:
 
     void print() const
     {
-        printf("CBlock(hash=%s, input=%s, PoW=%s, ver=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, type=%d, sha256base=%d, scryptbase=%d, vtx=%"PRIszu")\n",
+        printf("CBlock(version = %d, hash=%s, input=%s, PoW=%s, ver=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%"PRIszu")\n",
+            nVersion, 
             GetHash().ToString().c_str(),
             HexStr(BEGIN(nVersion),BEGIN(nVersion)+CBlockHeader::BLOCK_HEADER_LEN, false).c_str(),
             GetPoWHash().ToString().c_str(),
             nVersion,
             hashPrevBlock.ToString().c_str(),
             hashMerkleRoot.ToString().c_str(),
-            nTime, nBits, nNonce,nBlockType, nSHA256Base, nScryptBase,
+            nTime, nBits, nNonce, 
             vtx.size());
         for (unsigned int i = 0; i < vtx.size(); i++)
         {
@@ -1735,11 +1720,6 @@ public:
     unsigned int nTime;
     unsigned int nBits;
     unsigned int nNonce;
-    unsigned int nBlockType;
-    unsigned int nSHA256Base;
-    unsigned int nScryptBase;
-    unsigned int nReserve0;
-    unsigned int nReserve1;
 
 
     CBlockIndex()
@@ -1761,12 +1741,6 @@ public:
         nTime          = 0;
         nBits          = 0;
         nNonce         = 0;
-        
-        nBlockType         = 0;
-        nSHA256Base = 0;
-        nScryptBase = 0;
-        nReserve0 = 0;
-        nReserve1 = 0;
     }
 
     CBlockIndex(CBlockHeader& block)
@@ -1788,12 +1762,6 @@ public:
         nTime          = block.nTime;
         nBits          = block.nBits;
         nNonce         = block.nNonce;
-        nBlockType         = block.nBlockType;
-        nSHA256Base = block.nSHA256Base;
-        nScryptBase = block.nScryptBase;
-        nReserve0 = block.nReserve0;
-        nReserve1 = block.nReserve1;
-
     }
 
     CDiskBlockPos GetBlockPos() const {
@@ -1824,11 +1792,6 @@ public:
         block.nTime          = nTime;
         block.nBits          = nBits;
         block.nNonce         = nNonce;
-        block.nBlockType = nBlockType;
-        block.nSHA256Base = nSHA256Base;
-        block.nScryptBase = nScryptBase;
-        block.nReserve0 = nReserve0;
-        block.nReserve1 = nReserve1;
         return block;
     }
 
@@ -1900,10 +1863,10 @@ public:
 
     std::string ToString() const
     {
-        return strprintf("CBlockIndex(pprev=%p, pnext=%p, nHeight=%d, merkle=%s, hashBlock=%s, type=%d, sha256base=%d, scryptbase=%d)",
+        return strprintf("CBlockIndex(pprev=%p, pnext=%p, nHeight=%d, merkle=%s, hashBlock=%s, version=%d)",
             pprev, pnext, nHeight,
             hashMerkleRoot.ToString().c_str(),
-            GetBlockHash().ToString().c_str(), nBlockType, nSHA256Base, nScryptBase);
+            GetBlockHash().ToString().c_str(), nVersion);
     }
 
     void print() const
@@ -1963,11 +1926,6 @@ public:
         READWRITE(nTime);
         READWRITE(nBits);
         READWRITE(nNonce);
-        READWRITE(nBlockType);
-        READWRITE(nSHA256Base);
-        READWRITE(nScryptBase);
-        READWRITE(nReserve0);
-        READWRITE(nReserve1);
     )
 
     uint256 GetBlockHash() const
@@ -1979,11 +1937,6 @@ public:
         block.nTime           = nTime;
         block.nBits           = nBits;
         block.nNonce          = nNonce;
-        block.nBlockType = nBlockType;
-        block.nSHA256Base = nSHA256Base;
-        block.nScryptBase = nScryptBase;
-        block.nReserve0 = nReserve0;
-        block.nReserve1 = nReserve1;
         return block.GetHash();
     }
 

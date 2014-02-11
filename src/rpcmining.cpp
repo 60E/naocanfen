@@ -183,6 +183,11 @@ Value getworkex(const Array& params, bool fHelp)
 
     if (params.size() == 0)
     {
+        int algo = CBlockHeader::BLOCK_ALGO_SHA256;
+        std::string strCmd = GetArg("-miningalgo", "sha256");
+        if ( 0 == strCmd.compare("scrypt") )
+            algo = CBlockHeader::BLOCK_ALGO_SCRYPT;
+
         // Update block
         static unsigned int nTransactionsUpdatedLast;
         static CBlockIndex* pindexPrev;
@@ -209,7 +214,7 @@ Value getworkex(const Array& params, bool fHelp)
             nStart = GetTime();
 
             // Create new block
-            pblocktemplate = CreateNewBlockWithKey(*pMiningKey);
+            pblocktemplate = CreateNewBlockWithKey(*pMiningKey, algo);
             if (!pblocktemplate)
                 throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
             vNewBlockTemplate.push_back(pblocktemplate);
@@ -222,12 +227,6 @@ Value getworkex(const Array& params, bool fHelp)
         // Update nTime
         pblock->UpdateTime(pindexPrev);
         pblock->nNonce = 0;
-
-        std::string strCmd = GetArg("-miningalgo", "sha256");
-        if ( 0 == strCmd.compare("scrypt") )
-            pblock->nBlockType = CBlockHeader::BLOCK_TYPE_SCRYPT;
-        else
-            pblock->nBlockType = CBlockHeader::BLOCK_TYPE_SHA256;
 
         // Update nExtraNonce
         static unsigned int nExtraNonce = 0;
@@ -242,14 +241,7 @@ Value getworkex(const Array& params, bool fHelp)
         char phash1[64];
         FormatHashBuffers(pblock, pmidstate, pdata, phash1);
 
-        CBigNum bnNew;
-        if ( CBlockHeader::BLOCK_TYPE_SHA256 == pblock->nBlockType)
-            bnNew = (CBigNum().SetCompact(pblock->nBits) * pblock->nSHA256Base) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
-        else
-            bnNew = (CBigNum().SetCompact(pblock->nBits) * pblock->nScryptBase) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
-
-        uint256 hashTarget = bnNew.getuint256();
-        //uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
 
         CTransaction coinbaseTx = pblock->vtx[0];
         std::vector<uint256> merkle = pblock->GetMerkleBranch(0);
@@ -335,6 +327,11 @@ Value getwork(const Array& params, bool fHelp)
 
     if (params.size() == 0)
     {
+        int algo = CBlockHeader::BLOCK_ALGO_SHA256;
+        std::string strCmd = GetArg("-miningalgo", "sha256");
+        if ( 0 == strCmd.compare("scrypt") )
+            algo = CBlockHeader::BLOCK_ALGO_SCRYPT;
+        
         // Update block
         static unsigned int nTransactionsUpdatedLast;
         static CBlockIndex* pindexPrev;
@@ -361,7 +358,7 @@ Value getwork(const Array& params, bool fHelp)
             nStart = GetTime();
 
             // Create new block
-            pblocktemplate = CreateNewBlockWithKey(*pMiningKey);
+            pblocktemplate = CreateNewBlockWithKey(*pMiningKey, algo);
             if (!pblocktemplate)
                 throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
             vNewBlockTemplate.push_back(pblocktemplate);
@@ -374,12 +371,6 @@ Value getwork(const Array& params, bool fHelp)
         // Update nTime
         pblock->UpdateTime(pindexPrev);
         pblock->nNonce = 0;
-
-        std::string strCmd = GetArg("-miningalgo", "sha256");
-        if ( 0 == strCmd.compare("scrypt") )
-            pblock->nBlockType = CBlockHeader::BLOCK_TYPE_SCRYPT;
-        else
-            pblock->nBlockType = CBlockHeader::BLOCK_TYPE_SHA256;
 
         // Update nExtraNonce
         static unsigned int nExtraNonce = 0;
@@ -394,14 +385,7 @@ Value getwork(const Array& params, bool fHelp)
         char phash1[64];
         FormatHashBuffers(pblock, pmidstate, pdata, phash1);
 
-        CBigNum bnNew;
-        if ( CBlockHeader::BLOCK_TYPE_SHA256 == pblock->nBlockType)
-            bnNew = (CBigNum().SetCompact(pblock->nBits) * pblock->nSHA256Base) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
-        else
-            bnNew = (CBigNum().SetCompact(pblock->nBits) * pblock->nScryptBase) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
-
-        uint256 hashTarget = bnNew.getuint256();
-        //uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
         //printf("getwork hashTarget %s\n", hashTarget.ToString().c_str());
         //pblock->print();
 
@@ -487,6 +471,11 @@ Value getblocktemplate(const Array& params, bool fHelp)
     if (IsInitialBlockDownload())
         throw JSONRPCError(RPC_CLIENT_IN_INITIAL_DOWNLOAD, "Fusioncoin is downloading blocks...");
 
+    int algo = CBlockHeader::BLOCK_ALGO_SHA256;
+    std::string strCmd = GetArg("-miningalgo", "sha256");
+    if ( 0 == strCmd.compare("scrypt") )
+        algo = CBlockHeader::BLOCK_ALGO_SCRYPT;
+
     // Update block
     static unsigned int nTransactionsUpdatedLast;
     static CBlockIndex* pindexPrev;
@@ -510,7 +499,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
             pblocktemplate = NULL;
         }
         CScript scriptDummy = CScript() << OP_TRUE;
-        pblocktemplate = CreateNewBlock(scriptDummy);
+        pblocktemplate = CreateNewBlock(scriptDummy, algo);
         if (!pblocktemplate)
             throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
 
@@ -584,10 +573,6 @@ Value getblocktemplate(const Array& params, bool fHelp)
     result.push_back(Pair("sizelimit", (int64_t)MAX_BLOCK_SIZE));
     result.push_back(Pair("curtime", (int64_t)pblock->nTime));
     result.push_back(Pair("bits", HexBits(pblock->nBits)));
-    result.push_back(Pair("sha256base", (int64_t)pblock->nSHA256Base));
-    result.push_back(Pair("scryptbase", (int64_t)pblock->nScryptBase));
-    result.push_back(Pair("reserve0", (int64_t)pblock->nReserve0));
-    result.push_back(Pair("reserve1", (int64_t)pblock->nReserve1));
     result.push_back(Pair("height", (int64_t)(pindexPrev->nHeight+1)));
 
     return result;
@@ -647,8 +632,8 @@ Value getauxblock(const Array& params, bool fHelp)
 
     if (params.size() == 1)
     {
-        int blockType = atoi(params[0].get_str());
-        if ( CBlockHeader::BLOCK_TYPE_SHA256_AUX != blockType && CBlockHeader::BLOCK_TYPE_SCRYPT_AUX != blockType )
+        int algo = atoi(params[0].get_str());
+        if ( CBlockHeader::BLOCK_ALGO_SHA256 != algo && CBlockHeader::BLOCK_ALGO_SCRYPT != algo )
             return false;
         
         // Update block
@@ -661,7 +646,7 @@ Value getauxblock(const Array& params, bool fHelp)
         
         if (pindexPrev != pindexBest ||
             (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 60) ||
-            pblocktemplate->block.nBlockType != blockType )
+            pblocktemplate->block.GetAlgo() != algo )
         {
             if (pindexPrev != pindexBest)
             {
@@ -676,14 +661,11 @@ Value getauxblock(const Array& params, bool fHelp)
             nStart = GetTime();
 
             // Create new block 
-            pblocktemplate = CreateNewBlockWithKey(*pMiningKey);
+            pblocktemplate = CreateNewBlockWithKey(*pMiningKey, algo);
             if (!pblocktemplate)
                 throw JSONRPCError(RPC_OUT_OF_MEMORY, "Out of memory");
             
             pblock = &pblocktemplate->block;
-
-            // algo
-            pblock->nBlockType = blockType;
 
             // Update nTime
             pblock->nTime = max(pindexPrev->GetMedianTimePast()+1, GetAdjustedTime());
@@ -704,13 +686,7 @@ Value getauxblock(const Array& params, bool fHelp)
 
         pblock = &pblocktemplate->block;
         //pblock->print();
-        CBigNum bnNew;
-        if ( CBlockHeader::BLOCK_TYPE_SHA256_AUX == pblock->nBlockType)
-            bnNew = (CBigNum().SetCompact(pblock->nBits) * pblock->nSHA256Base) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
-        else
-            bnNew = (CBigNum().SetCompact(pblock->nBits) * pblock->nScryptBase) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
-
-        uint256 hashTarget = bnNew.getuint256();
+        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
         //printf("hashTarget %s\n", hashTarget.ToString().c_str());
 
         Object result;

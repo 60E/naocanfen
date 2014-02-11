@@ -46,7 +46,7 @@ public:
 
     bool IsNull() const
     {
-        return (nBits == 0);
+        return (nTime == 0);
     }
 
     uint256 GetHash() const
@@ -71,13 +71,18 @@ public:
     CAuxPow(const CTransaction& txIn);
     
     bool Check(uint256 hashAuxBlock, int nChainID) const;
+    
+    bool IsNull() const
+    {
+        return vParentBlockHeader.IsNull();
+    }
 
     uint256 GetParentBlockHash()
     {
         return vParentBlockHeader.GetHash();
     }
 
-    uint256 GetPoWHash(int nBlockType) const;
+    uint256 GetPoWHash(int algo) const;
 
     IMPLEMENT_SERIALIZE
     (

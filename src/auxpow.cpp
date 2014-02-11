@@ -121,9 +121,9 @@ bool CAuxPow::Check(uint256 hashAuxBlock, int nChainID) const
     return true;
 }
 
-uint256 CAuxPow::GetPoWHash(int nBlockType) const
+uint256 CAuxPow::GetPoWHash(int algo) const
 {
-    if ( CBlockHeader::BLOCK_TYPE_SCRYPT_AUX == nBlockType )
+    if ( CBlockHeader::BLOCK_ALGO_SCRYPT == algo )
     {
         uint256 thash;
         scrypt_1024_1_1_256(BEGIN(vParentBlockHeader.nVersion), 80, BEGIN(thash));

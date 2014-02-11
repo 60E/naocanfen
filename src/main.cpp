@@ -31,18 +31,11 @@ CTxMemPool mempool;
 unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
-// fusioncoin
-//uint256 hashGenesisBlock("0x12a765e31ffd4059bada1e25190f6e98c99d9714d334efa41a195a7e7e04bfe2");
-// bitcoin
-//uint256 hashGenesisBlock("0x000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f");
-// yueye scrypt
-//uint256 hashGenesisBlock("0xa219a05b1623c8f71d573ec00cd66b3274b4fd22f2311e5bb73f6a7c1503383c");
-// sha256
-//uint256 hashGenesisBlock("0000b71d44ab7214d3ebd1f86f75327cfcfc8b27d946244053651d4059087303");
-// sha256 new
-uint256 hashGenesisBlock("0000006e198b1858060a6303cf40d7da16c73a4b10fcf2d265165a0ad837aa2c");
+uint256 hashGenesisBlock("00000be4a37d9da3b0094ec225c17af40c4e2d75091c76d918b59c47081db380");
 
-static CBigNum bnProofOfWorkLimit(~uint256(0) >> 16); // Fusioncoin: starting difficulty is 1 / 2^16
+static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20); // Fusioncoin: starting difficulty is 1 / 2^16
+//static CBigNum bnProofOfWorkLimit[2] = { CBigNum(~uint256(0) >> 24), CBigNum(~uint256(0) >> 16) };
+//static CBigNum bnInitialHashTarget[2] = { CBigNum(~uint256(0) >> 24), CBigNum(~uint256(0) >> 16) };
 
 //static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20); // Fusioncoin: starting difficulty is 1 / 2^12
 CBlockIndex* pindexGenesisBlock = NULL;
@@ -1087,7 +1080,7 @@ int64 static GetBlockValue(int nHeight, int64 nFees)
 //static const int64 nTargetTimespan = 3.5 * 24 * 60 * 60; // Fusioncoin: 3.5 days
 //static const int64 nTargetSpacing = 2.5 * 60; // Fusioncoin: 2.5 minutes
 static const int64 nTargetTimespan = 4 * 60; //  
-static const int64 nTargetSpacing = 1 * 60; //  2 minutes
+static const int64 nTargetSpacing = 1 * 60; //  1 minutes
 static const int64 nInterval = nTargetTimespan / nTargetSpacing;
 
 //
@@ -1115,115 +1108,64 @@ unsigned int ComputeMinWork(unsigned int nBase, int64 nTime)
     return bnResult.GetCompact();
 }
 
-void static UpdateNextWorkBase(const CBlockIndex* pindexLast, CBlockHeader *pblock)
+const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, int algo)
 {
-    int n;
-    if ( pindexLast->nScryptBase > (CBlockHeader::BLOCK_TYPE_MAX >> 1) )
-        n = pindexLast->nSHA256Base >> 3;
-    else
-        n = pindexLast->nScryptBase >> 3;
-        
-    if ( CBlockHeader::BLOCK_TYPE_SCRYPT == pindexLast->nBlockType 
-        || CBlockHeader::BLOCK_TYPE_SCRYPT_AUX == pindexLast->nBlockType )
-    {
-        pblock->nScryptBase = pindexLast->nScryptBase - n;
-        pblock->nSHA256Base = CBlockHeader::BLOCK_TYPE_MAX - pblock->nScryptBase;
-    }
-    else
-    {
-        pblock->nSHA256Base = pindexLast->nSHA256Base - n;
-        pblock->nScryptBase = CBlockHeader::BLOCK_TYPE_MAX - pblock->nSHA256Base;
-    }
-
-    pblock->nReserve0 = pindexLast->nReserve0;
-    pblock->nReserve1 = pindexLast->nReserve1;
+    while (pindex && pindex->pprev && ( CBlockHeader::GetBlockAlgo(pindex->nVersion) != algo))
+        pindex = pindex->pprev;
+    return pindex;
 }
 
-static bool CheckNetworkBase(const CBlockIndex* pindexLast, const CBlockHeader *pblock){
-    CBlockHeader tempHeader = *pblock;
-    UpdateNextWorkBase(pindexLast, &tempHeader);
-    if ( tempHeader.nSHA256Base == pblock->nSHA256Base
-        && tempHeader.nScryptBase == pblock->nScryptBase
-        && tempHeader.nReserve0 == pblock->nReserve0
-        && tempHeader.nReserve1 == pblock->nReserve1
-        )
-        return true;
-
-    return false;
+const CBlockIndex* GetLastBlockIndexForAlgo(const CBlockIndex* pindex, int algo)
+{
+    for (;;)
+    {
+        if (!pindex)
+            return NULL;
+        if (CBlockHeader::GetBlockAlgo(pindex->nVersion) == algo)
+            return pindex;
+        pindex = pindex->pprev;
+    }
 }
 
-unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock)
+unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, int algo)
 {
     unsigned int nProofOfWorkLimit = bnProofOfWorkLimit.GetCompact();
 
-    // Genesis block
     if (pindexLast == NULL)
-        return nProofOfWorkLimit;
+        return nProofOfWorkLimit; // genesis block
 
-    // Only change once per interval
-    if ((pindexLast->nHeight+1) % nInterval != 0)
-    {
-        // Special difficulty rule for testnet:
-        if (fTestNet)
-        {
-            // If the new block's timestamp is more than 2* 10 minutes
-            // then allow mining of a min-difficulty block.
-            if (pblock->nTime > pindexLast->nTime + nTargetSpacing*2)
-                return nProofOfWorkLimit;
-            else
-            {
-                // Return the last non-special-min-difficulty-rules-block
-                const CBlockIndex* pindex = pindexLast;
-                while (pindex->pprev && pindex->nHeight % nInterval != 0 && pindex->nBits == nProofOfWorkLimit)
-                    pindex = pindex->pprev;
-                return pindex->nBits;
-            }
-        }
+    const CBlockIndex* pindexPrev = GetLastBlockIndex(pindexLast, algo);
+    if (pindexPrev->pprev == NULL)
+        return nProofOfWorkLimit; // first block
+    const CBlockIndex* pindexPrevPrev = GetLastBlockIndex(pindexPrev->pprev, algo);
+    if (pindexPrevPrev->pprev == NULL)
+        return nProofOfWorkLimit; // second block
 
-        return pindexLast->nBits;
-    }
+    int64 nActualSpacing = pindexPrev->GetBlockTime() - pindexPrevPrev->GetBlockTime();
 
-    // Fusioncoin: This fixes an issue where a 51% attack can change difficulty at will.
-    // Go back the full period unless it's the first retarget after genesis. Code courtesy of Art Forz
-    int blockstogoback = nInterval-1;
-    if ((pindexLast->nHeight+1) != nInterval)
-        blockstogoback = nInterval;
-
-    // Go back by what we want to be 14 days worth of blocks
-    const CBlockIndex* pindexFirst = pindexLast;
-    for (int i = 0; pindexFirst && i < blockstogoback; i++)
-        pindexFirst = pindexFirst->pprev;
-    assert(pindexFirst);
-
-    // Limit adjustment step
-    int64 nActualTimespan = pindexLast->GetBlockTime() - pindexFirst->GetBlockTime();
-    printf("  nActualTimespan = %"PRI64d"  before bounds\n", nActualTimespan);
-    if (nActualTimespan < nTargetTimespan/4)
-        nActualTimespan = nTargetTimespan/4;
-    if (nActualTimespan > nTargetTimespan*4)
-        nActualTimespan = nTargetTimespan*4;
-
-    // Retarget
+    // ppcoin: target change every block
+    // ppcoin: retarget with exponential moving toward target spacing
     CBigNum bnNew;
-    bnNew.SetCompact(pindexLast->nBits);
-    bnNew *= nActualTimespan;
-    bnNew /= nTargetTimespan;
+    bnNew.SetCompact(pindexPrev->nBits);
+
+    bnNew *= ((nInterval - 1) * nTargetSpacing + nActualSpacing + nActualSpacing);
+    bnNew /= ((nInterval + 1) * nTargetSpacing);
 
     if (bnNew > bnProofOfWorkLimit)
         bnNew = bnProofOfWorkLimit;
 
     /// debug print
     printf("GetNextWorkRequired RETARGET\n");
-    printf("nTargetTimespan = %"PRI64d"    nActualTimespan = %"PRI64d"\n", nTargetTimespan, nActualTimespan);
-    printf("Before: %08x  %s\n", pindexLast->nBits, CBigNum().SetCompact(pindexLast->nBits).getuint256().ToString().c_str());
+    //printf("nTargetTimespan = %"PRI64d"    nActualTimespan = %"PRI64d"\n", nTargetTimespan, nActualTimespan);
+    printf("Before: %08x  %s\n", pindexPrev->nBits, CBigNum().SetCompact(pindexPrev->nBits).getuint256().ToString().c_str());
     printf("After:  %08x  %s\n", bnNew.GetCompact(), bnNew.getuint256().ToString().c_str());
 
     return bnNew.GetCompact();
 }
 
-bool CheckProofOfWork(uint256 hash, unsigned int nBits, int base)
+bool CheckProofOfWork(uint256 hash, unsigned int nBits, int algo)
 {
-    CBigNum bnTarget = (CBigNum().SetCompact(nBits) * base) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
+    CBigNum bnTarget = CBigNum().SetCompact(nBits);
 
     // Check range
     if (bnTarget <= 0 || bnTarget > bnProofOfWorkLimit)
@@ -1351,7 +1293,7 @@ void CBlockHeader::UpdateTime(const CBlockIndex* pindexPrev)
 
     // Updating time can change work required on testnet:
     if (fTestNet)
-        nBits = GetNextWorkRequired(pindexPrev, this);
+        nBits = GetNextWorkRequired(pindexPrev, this, this->GetAlgo());
 }
 
 
@@ -1949,6 +1891,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
       DateTimeStrFormat("%Y-%m-%d %H:%M:%S", pindexBest->GetBlockTime()).c_str(),
       Checkpoints::GuessVerificationProgress(pindexBest));
 
+#if 0
     // Check the version of the last 100 blocks to see if we need to upgrade:
     if (!fIsInitialDownload)
     {
@@ -1966,7 +1909,7 @@ bool SetBestChain(CValidationState &state, CBlockIndex* pindexNew)
             // strMiscWarning is read by GetWarnings(), called by Qt and the JSON-RPC code to warn the user:
             strMiscWarning = _("Warning: This version is obsolete, upgrade required!");
     }
-
+#endif
     std::string strCmd = GetArg("-blocknotify", "");
 
     if (!fIsInitialDownload && !strCmd.empty())
@@ -2155,7 +2098,7 @@ bool CBlock::CheckBlock(CValidationState &state, bool fCheckPOW, bool fCheckMerk
     if ( fCheckPOW && isAuxBlock() && !vAuxPow.Check(GetHash(), 0))
         return state.DoS(50, error("CheckProofOfWork() : AUX POW is not valid"));
     
-    if (fCheckPOW && !CheckProofOfWork(GetPoWHash(), nBits, GetPoWBase()))
+    if (fCheckPOW && !CheckProofOfWork(GetPoWHash(), nBits, GetAlgo()))
         return state.DoS(50, error("CheckBlock() : proof of work failed"));
 
     // Check timestamp
@@ -2221,11 +2164,8 @@ bool CBlock::AcceptBlock(CValidationState &state, CDiskBlockPos *dbp)
         nHeight = pindexPrev->nHeight+1;
 
         // Check proof of work
-        if (nBits != GetNextWorkRequired(pindexPrev, this))
+        if (nBits != GetNextWorkRequired(pindexPrev, this, GetAlgo()))
             return state.DoS(100, error("AcceptBlock() : incorrect proof of work"));
-
-        if ( !CheckNetworkBase(pindexPrev, this) )
-            return state.DoS(100, error("AcceptBlock() : incorrect NetworkBase"));
 
         // Check timestamp against prev
         if (GetBlockTime() <= pindexPrev->GetMedianTimePast())
@@ -2335,13 +2275,18 @@ bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBl
         {
             return state.DoS(100, error("ProcessBlock() : block with timestamp before last checkpoint"));
         }
-        CBigNum bnNewBlock;
-        bnNewBlock.SetCompact(pblock->nBits);
-        CBigNum bnRequired;
-        bnRequired.SetCompact(ComputeMinWork(pcheckpoint->nBits, deltaTime));
-        if (bnNewBlock > bnRequired)
+
+        // unfinish
+        if ( pcheckpoint->nVersion == pblock->nVersion )
         {
-            return state.DoS(100, error("ProcessBlock() : block with too little proof-of-work"));
+            CBigNum bnNewBlock;
+            bnNewBlock.SetCompact(pblock->nBits);
+            CBigNum bnRequired;
+            bnRequired.SetCompact(ComputeMinWork(pcheckpoint->nBits, deltaTime));
+            if (bnNewBlock > bnRequired)
+            {
+                return state.DoS(100, error("ProcessBlock() : block with too little proof-of-work"));
+            }
         }
     }
 
@@ -2847,28 +2792,23 @@ bool InitBlockIndex() {
         block.nNonce   = 17290;
 #else
         //const char* pszTimestamp = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";
-        const char* pszTimestamp = "Hybrid coin project start!";
+        const char* pszTimestamp = "Fusioncoin project start!";
         CTransaction txNew;
         txNew.vin.resize(1);
         txNew.vout.resize(1);
         txNew.vin[0].scriptSig = CScript() << 486604799 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-        txNew.vout[0].nValue = 50 * COIN;
-        txNew.vout[0].scriptPubKey = CScript() << ParseHex("040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9") << OP_CHECKSIG;
+        txNew.vout[0].nValue = 100 * COIN;
+        txNew.vout[0].scriptPubKey = CScript() << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f") << OP_CHECKSIG;
         CBlock block;
         block.vtx.push_back(txNew);
         block.hashPrevBlock = 0;
         block.hashMerkleRoot = block.BuildMerkleTree();
         block.nVersion = 2;
-        block.nTime    = 1390816956;
-        block.nBits    = 0x1F00FFFF;
-        block.nNonce   = 59521690;
-        block.nBlockType   = 0;
-        block.nSHA256Base = CBlockHeader::BLOCK_TYPE_MAX >> 9;
-        block.nScryptBase = CBlockHeader::BLOCK_TYPE_MAX - block.nSHA256Base;
-        block.nReserve0   = 0;
-        block.nReserve1   = 0;
-        // hash 0000006e198b1858060a6303cf40d7da16c73a4b10fcf2d265165a0ad837aa2c
-        // hashMerkleRoot 6340809ddf949159ba09d7999279e34d74d255679719ac82d0bbc6a095ae1b28
+        block.nTime    = 1392110340;
+        block.nBits    = 0x1E0FFFFF;
+        block.nNonce   = 1722055;
+        // hash 00000be4a37d9da3b0094ec225c17af40c4e2d75091c76d918b59c47081db380
+        // hashMerkleRoot 64aed35ef0ba8497dd1471514034626f4c877dd1f375a3437732ca794c527aac
 #endif
 
         //// debug print
@@ -4318,13 +4258,15 @@ public:
     }
 };
 
-CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
+CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn, int algo)
 {
     // Create new block
     auto_ptr<CBlockTemplate> pblocktemplate(new CBlockTemplate());
     if(!pblocktemplate.get())
         return NULL;
     CBlock *pblock = &pblocktemplate->block; // pointer for convenience
+
+    pblock->nVersion = CBlockHeader::GetBlockVersion(algo);
 
     // Create coinbase tx
     CTransaction txNew;
@@ -4540,8 +4482,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
         // Fill in header
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
         pblock->UpdateTime(pindexPrev);
-        pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock);
-        UpdateNextWorkBase(pindexPrev, pblock);
+        pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock, pblock->GetAlgo());
         pblock->nNonce         = 0;
         pblock->vtx[0].vin[0].scriptSig = CScript() << OP_0 << OP_0;
         pblocktemplate->vTxSigOps[0] = pblock->vtx[0].GetLegacySigOpCount();
@@ -4558,14 +4499,14 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
     return pblocktemplate.release();
 }
 
-CBlockTemplate* CreateNewBlockWithKey(CReserveKey& reservekey)
+CBlockTemplate* CreateNewBlockWithKey(CReserveKey& reservekey, int algo)
 {
     CPubKey pubkey;
     if (!reservekey.GetReservedKey(pubkey))
         return NULL;
 
     CScript scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
-    return CreateNewBlock(scriptPubKey);
+    return CreateNewBlock(scriptPubKey, algo);
 }
 
 void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& nExtraNonce)
@@ -4601,11 +4542,6 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
             unsigned int nTime;
             unsigned int nBits;
             unsigned int nNonce;
-            int nBlockType;
-            int nSHA256Base;
-            int nScryptBase;
-            int nReserve0;
-            int nReserve1;
         }
         block;
         unsigned char pchPadding0[64];
@@ -4621,11 +4557,6 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
     tmp.block.nTime          = pblock->nTime;
     tmp.block.nBits          = pblock->nBits;
     tmp.block.nNonce         = pblock->nNonce;
-    tmp.block.nBlockType         = pblock->nBlockType;
-    tmp.block.nSHA256Base         = pblock->nSHA256Base;
-    tmp.block.nScryptBase         = pblock->nScryptBase;
-    tmp.block.nReserve0         = pblock->nReserve0;
-    tmp.block.nReserve1         = pblock->nReserve1;
 
     FormatHashBlocks(&tmp.block, sizeof(tmp.block));
     FormatHashBlocks(&tmp.hash1, sizeof(tmp.hash1));
@@ -4646,7 +4577,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 {
     // yueye
     uint256 hash = pblock->GetPoWHash();
-    CBigNum bnNew = (CBigNum().SetCompact(pblock->nBits) * pblock->GetPoWBase()) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
+    CBigNum bnNew = CBigNum().SetCompact(pblock->nBits);
     uint256 hashTarget = bnNew.getuint256();
 
     if (hash > hashTarget)
@@ -4705,12 +4636,11 @@ void static LitecoinMiner(CWallet *pwallet)
         unsigned int nTransactionsUpdatedLast = nTransactionsUpdated;
         CBlockIndex* pindexPrev = pindexBest;
 
-        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlockWithKey(reservekey));
+        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlockWithKey(reservekey, CBlockHeader::BLOCK_ALGO_SCRYPT));
         if (!pblocktemplate.get())
             return;
         CBlock *pblock = &pblocktemplate->block;
         IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
-        pblock->nBlockType = CBlockHeader::BLOCK_TYPE_SCRYPT;
 
         printf("Running LitecoinMiner with %"PRIszu" transactions in block (%u bytes)\n", pblock->vtx.size(),
                ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
@@ -4733,9 +4663,7 @@ void static LitecoinMiner(CWallet *pwallet)
         // Search
         //
         int64 nStart = GetTime();
-        //uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
-        CBigNum bnNew = (CBigNum().SetCompact(pblock->nBits) * pblock->nScryptBase) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
-        uint256 hashTarget = bnNew.getuint256();
+        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
         
         loop
         {
@@ -4839,17 +4767,17 @@ void static LitecoinMinerAux(CWallet *pwallet)
         //
         // Create AuxPOW Block
         //
-        auto_ptr<CBlockTemplate> pblocktemplateAux(CreateNewBlockWithKey(reservekey));
+        auto_ptr<CBlockTemplate> pblocktemplateAux(CreateNewBlockWithKey(reservekey, CBlockHeader::BLOCK_ALGO_SCRYPT));
         if (!pblocktemplateAux.get())
             return;
         CBlock *pBlockAux = &pblocktemplateAux->block;
+        pBlockAux->nVersion |= CBlockHeader::VERSION_AUX;
         IncrementExtraNonce(pBlockAux, pindexPrev, nExtraNonceAux);
-        pBlockAux->nBlockType = CBlockHeader::BLOCK_TYPE_SCRYPT_AUX;
 
         //
         // Create new block
         //
-        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlockWithKey(reservekey));
+        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlockWithKey(reservekey, CBlockHeader::BLOCK_ALGO_SCRYPT));
         if (!pblocktemplate.get())
             return;
         CBlock *pblock = &pblocktemplate->block;
@@ -4886,9 +4814,7 @@ void static LitecoinMinerAux(CWallet *pwallet)
         // Search
         //
         int64 nStart = GetTime();
-        //uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
-        CBigNum bnNew = (CBigNum().SetCompact(pBlockAux->nBits) * pBlockAux->nScryptBase) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
-        uint256 hashTarget = bnNew.getuint256();
+        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
         
         loop
         {
@@ -5001,12 +4927,11 @@ void static BitcoinMiner(CWallet *pwallet)
         unsigned int nTransactionsUpdatedLast = nTransactionsUpdated;
         CBlockIndex* pindexPrev = pindexBest;
 
-        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlockWithKey(reservekey));
+        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlockWithKey(reservekey, CBlockHeader::BLOCK_ALGO_SHA256));
         if (!pblocktemplate.get())
             return;
         CBlock *pblock = &pblocktemplate->block;
         IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
-        pblock->nBlockType = CBlockHeader::BLOCK_TYPE_SHA256;
 
         printf("Running BitcoinMiner with %"PRIszu" transactions in block (%u bytes)\n", pblock->vtx.size(),
                ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
@@ -5028,10 +4953,7 @@ void static BitcoinMiner(CWallet *pwallet)
         // Search
         //
         int64 nStart = GetTime();
-        //uint256 hashTarget1 = CBigNum().SetCompact(pblock->nBits).getuint256();
-        //printf("hashTarget total %s\n", hashTarget1.ToString().c_str());
-        CBigNum bnNew = (CBigNum().SetCompact(pblock->nBits) * pblock->nSHA256Base) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
-        uint256 hashTarget = bnNew.getuint256();
+        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
         //printf("hashTarget sha256 %s\n", hashTarget.ToString().c_str());
         
         uint256 hashbuf[2];
@@ -5163,18 +5085,18 @@ void static BitcoinMinerAux(CWallet *pwallet)
         //
         // Create AuxPOW Block
         //
-        auto_ptr<CBlockTemplate> pblocktemplateAux(CreateNewBlockWithKey(reservekey));
+        auto_ptr<CBlockTemplate> pblocktemplateAux(CreateNewBlockWithKey(reservekey, CBlockHeader::BLOCK_ALGO_SHA256));
         if (!pblocktemplateAux.get())
             return;
         CBlock *pBlockAux = &pblocktemplateAux->block;
+        pBlockAux->nVersion |= CBlockHeader::VERSION_AUX;
         IncrementExtraNonce(pBlockAux, pindexPrev, nExtraNonceAux);
-        pBlockAux->nBlockType = CBlockHeader::BLOCK_TYPE_SHA256_AUX;
 
         //
         // Create parent block
         //
 
-        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlockWithKey(reservekey));
+        auto_ptr<CBlockTemplate> pblocktemplate(CreateNewBlockWithKey(reservekey, CBlockHeader::BLOCK_ALGO_SHA256));
         if (!pblocktemplate.get())
             return;
         CBlock *pblock = &pblocktemplate->block;
@@ -5211,8 +5133,7 @@ void static BitcoinMinerAux(CWallet *pwallet)
         // Search
         //
         int64 nStart = GetTime();
-        CBigNum bnNew = (CBigNum().SetCompact(pBlockAux->nBits) * pBlockAux->nSHA256Base) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
-        uint256 hashTarget = bnNew.getuint256();
+        uint256 hashTarget = CBigNum().SetCompact(pBlockAux->nBits).getuint256();
         //printf("hashTarget sha256 %s\n", hashTarget.ToString().c_str());
         
         uint256 hashbuf[2];
@@ -5330,7 +5251,7 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
         if ( i % 2 )
             minerThreads->create_thread(boost::bind(&LitecoinMinerAux, pwallet));
         else
-            minerThreads->create_thread(boost::bind(&BitcoinMiner, pwallet));
+            minerThreads->create_thread(boost::bind(&BitcoinMinerAux, pwallet));
     }
 }
 
@@ -5341,7 +5262,7 @@ bool genGenesisBlockSHA256() {
     txNew.vin.resize(1);
     txNew.vout.resize(1);
     txNew.vin[0].scriptSig = CScript() << 486604799 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-    txNew.vout[0].nValue = 100 * COIN;
+    txNew.vout[0].nValue = 50 * COIN;
     txNew.vout[0].scriptPubKey = CScript() << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f") << OP_CHECKSIG;
     CBlock block;
     block.vtx.push_back(txNew);
@@ -5351,14 +5272,8 @@ bool genGenesisBlockSHA256() {
     block.nTime    = GetAdjustedTime();
     block.nBits    = bnProofOfWorkLimit.GetCompact();
     block.nNonce   = 0;
-    block.nBlockType = CBlockHeader::BLOCK_TYPE_SHA256;
-    block.nSHA256Base = CBlockHeader::BLOCK_TYPE_MAX >> 9;
-    block.nScryptBase = CBlockHeader::BLOCK_TYPE_MAX - block.nSHA256Base;
-    block.nReserve0 = 0;
-    block.nReserve1 = 0;
 
-    CBigNum bnNew = (CBigNum().SetCompact(block.nBits) * block.nSHA256Base) >> CBlockHeader::BLOCK_TYPE_MAX_SHIFT;
-    uint256 hashTarget = bnNew.getuint256();
+    uint256 hashTarget = CBigNum().SetCompact(block.nBits).getuint256();
 
     loop
     {
