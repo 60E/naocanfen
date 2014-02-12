@@ -607,7 +607,7 @@ Value submitblock(const Array& params, bool fHelp)
 
 Value getauxblock(const Array& params, bool fHelp)
 {
-    if (fHelp || (params.size() != 1 && params.size() != 2))
+    if (fHelp || (params.size() != 0 && params.size() != 1 && params.size() != 2))
         throw runtime_error(
             "getauxblock [type]\n"
             "getauxblock [<hash> <auxpow>]\n"
@@ -616,8 +616,8 @@ Value getauxblock(const Array& params, bool fHelp)
             "If <hash>, <auxpow> is specified, tries to solve the block based on "
             "the aux proof of work and returns true if it was successful.");
 
-    if (vNodes.empty())
-        throw JSONRPCError(-9, "Bitcoin is not connected!");
+    //if (vNodes.empty())
+        //throw JSONRPCError(-9, "Bitcoin is not connected!");
 
     if (IsInitialBlockDownload())
         throw JSONRPCError(-10, "Bitcoin is downloading blocks...");
@@ -630,12 +630,24 @@ Value getauxblock(const Array& params, bool fHelp)
     static mapNewBlock_t mapNewBlock;    // FIXME: thread safety
     static vector<CBlockTemplate*> vNewBlockTemplate;
 
-    if (params.size() == 1)
+    if (params.size() == 0 || params.size() == 1)
     {
-        int algo = atoi(params[0].get_str());
-        if ( CBlockHeader::BLOCK_ALGO_SHA256 != algo && CBlockHeader::BLOCK_ALGO_SCRYPT != algo )
-            return false;
-        
+        int algo = CBlockHeader::BLOCK_ALGO_SHA256;
+        if ( params.size() == 0 )
+        {
+            std::string strCmd = GetArg("-miningalgo", "sha256");
+            if ( 0 == strCmd.compare("scrypt") )
+                algo = CBlockHeader::BLOCK_ALGO_SCRYPT;
+            //printf("param 0, algo = %d\n", algo);
+        }
+        else
+        {
+            algo = atoi(params[0].get_str());
+            //printf("param %s, algo = %d\n", params[0].get_str().c_str(), algo);
+            if ( CBlockHeader::BLOCK_ALGO_SHA256 != algo && CBlockHeader::BLOCK_ALGO_SCRYPT != algo )
+                return false;
+        }
+
         // Update block
         static unsigned int nTransactionsUpdatedLast;
         static CBlockIndex* pindexPrev;
@@ -682,6 +694,7 @@ Value getauxblock(const Array& params, bool fHelp)
             vNewBlockTemplate.push_back(pblocktemplate);
             //mapNewBlock[pblock->GetHash()] = pblock;
             mapNewBlock[pblock->GetHash()] = make_pair(pblock, pblock->vtx[0].vin[0].scriptSig);
+            //printf("block algo = %d\n", pblock->GetAlgo());
         }
 
         pblock = &pblocktemplate->block;
