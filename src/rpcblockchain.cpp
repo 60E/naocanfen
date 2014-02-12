@@ -42,6 +42,33 @@ double GetDifficulty(const CBlockIndex* blockindex)
     return dDiff;
 }
 
+double GetDifficulty(int algo)
+{
+    const CBlockIndex* blockindex = GetLastBlockIndexForAlgo(pindexBest, algo);
+    unsigned int nBits;
+    if (blockindex == NULL)
+        return 1.0;
+    else
+        nBits = blockindex->nBits;
+
+    int nShift = (nBits >> 24) & 0xff;
+
+    double dDiff =
+        (double)0x0000ffff / (double)(nBits & 0x00ffffff);
+
+    while (nShift < 29)
+    {
+        dDiff *= 256.0;
+        nShift++;
+    }
+    while (nShift > 29)
+    {
+        dDiff /= 256.0;
+        nShift--;
+    }
+
+    return dDiff;
+}
 
 Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex)
 {
@@ -97,8 +124,13 @@ Value getdifficulty(const Array& params, bool fHelp)
         throw runtime_error(
             "getdifficulty\n"
             "Returns the proof-of-work difficulty as a multiple of the minimum difficulty.");
+    
+    int algo = CBlockHeader::BLOCK_ALGO_SHA256;
+    std::string strCmd = GetArg("-miningalgo", "sha256");
+    if ( 0 == strCmd.compare("scrypt") )
+        algo = CBlockHeader::BLOCK_ALGO_SCRYPT;
 
-    return GetDifficulty();
+    return GetDifficulty(algo);
 }
 
 

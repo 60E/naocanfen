@@ -192,7 +192,7 @@ bool VerifySignature(const CCoins& txFrom, const CTransaction& txTo, unsigned in
 /** Abort with a message */
 bool AbortNode(const std::string &msg);
 
-
+const CBlockIndex* GetLastBlockIndexForAlgo(const CBlockIndex* pindex, int algo);
 
 
 
