@@ -31,13 +31,12 @@ CTxMemPool mempool;
 unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
-uint256 hashGenesisBlock("00000be4a37d9da3b0094ec225c17af40c4e2d75091c76d918b59c47081db380");
+uint256 hashGenesisBlock("0000009d66822aa9a834407cc78204c56317271e655d62135b164a7aa908721c");
 
-static CBigNum bnProofOfWorkLimit(~uint256(0) >> 16); // Fusioncoin: starting difficulty is 1 / 2^16
-//static CBigNum bnProofOfWorkLimit[2] = { CBigNum(~uint256(0) >> 24), CBigNum(~uint256(0) >> 16) };
+//static CBigNum bnProofOfWorkLimit(~uint256(0) >> 16); // Fusioncoin: starting difficulty is 1 / 2^16
+static CBigNum bnProofOfWorkLimits[2] = { CBigNum(~uint256(0) >> 24), CBigNum(~uint256(0) >> 16) };
 //static CBigNum bnInitialHashTarget[2] = { CBigNum(~uint256(0) >> 24), CBigNum(~uint256(0) >> 16) };
 
-//static CBigNum bnProofOfWorkLimit(~uint256(0) >> 20); // Fusioncoin: starting difficulty is 1 / 2^12
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
 uint256 nBestChainWork = 0;
@@ -1090,14 +1089,15 @@ int64 static GetBlockValue(int nHeight, int64 nFees)
 // yueye
 //static const int64 nTargetTimespan = 3.5 * 24 * 60 * 60; // Fusioncoin: 3.5 days
 //static const int64 nTargetSpacing = 2.5 * 60; // Fusioncoin: 2.5 minutes
-static const int64 nTargetTimespan = 4 * 60; //  
-static const int64 nTargetSpacing = 1 * 60; //  1 minutes
+static const int64 nTargetTimespan = 1 * 24 * 60 * 60; //  
+static const int64 nTargetSpacing = 4 * 60; //  1 minutes
 static const int64 nInterval = nTargetTimespan / nTargetSpacing;
 
 //
 // minimum amount of work that could possibly be required nTime after
 // minimum work required was nBase
 //
+#if 0
 unsigned int ComputeMinWork(unsigned int nBase, int64 nTime)
 {
     // Testnet has min-difficulty blocks
@@ -1118,6 +1118,7 @@ unsigned int ComputeMinWork(unsigned int nBase, int64 nTime)
         bnResult = bnProofOfWorkLimit;
     return bnResult.GetCompact();
 }
+#endif
 
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, int algo)
 {
@@ -1140,7 +1141,7 @@ const CBlockIndex* GetLastBlockIndexForAlgo(const CBlockIndex* pindex, int algo)
 
 unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, int algo)
 {
-    unsigned int nProofOfWorkLimit = bnProofOfWorkLimit.GetCompact();
+    unsigned int nProofOfWorkLimit = bnProofOfWorkLimits[algo].GetCompact();
 
     if (pindexLast == NULL)
         return nProofOfWorkLimit; // genesis block
@@ -1162,8 +1163,8 @@ unsigned int static GetNextWorkRequired(const CBlockIndex* pindexLast, const CBl
     bnNew *= ((nInterval - 1) * nTargetSpacing + nActualSpacing + nActualSpacing);
     bnNew /= ((nInterval + 1) * nTargetSpacing);
 
-    if (bnNew > bnProofOfWorkLimit)
-        bnNew = bnProofOfWorkLimit;
+    if (bnNew > bnProofOfWorkLimits[algo])
+        bnNew = bnProofOfWorkLimits[algo];
 
     /// debug print
     printf("GetNextWorkRequired RETARGET\n");
@@ -1179,7 +1180,7 @@ bool CheckProofOfWork(uint256 hash, unsigned int nBits, int algo)
     CBigNum bnTarget = CBigNum().SetCompact(nBits);
 
     // Check range
-    if (bnTarget <= 0 || bnTarget > bnProofOfWorkLimit)
+    if (bnTarget <= 0 || bnTarget > bnProofOfWorkLimits[algo])
         return false;
         //return error("CheckProofOfWork() : nBits below minimum work");
 
@@ -2288,6 +2289,7 @@ bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBl
         }
 
         // unfinish
+        #if 0
         if ( pcheckpoint->nVersion == pblock->nVersion )
         {
             CBigNum bnNewBlock;
@@ -2299,6 +2301,7 @@ bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBl
                 return state.DoS(100, error("ProcessBlock() : block with too little proof-of-work"));
             }
         }
+        #endif
     }
 
 
@@ -2808,18 +2811,18 @@ bool InitBlockIndex() {
         txNew.vin.resize(1);
         txNew.vout.resize(1);
         txNew.vin[0].scriptSig = CScript() << 486604799 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-        txNew.vout[0].nValue = 100 * COIN;
+        txNew.vout[0].nValue = 50 * COIN;
         txNew.vout[0].scriptPubKey = CScript() << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f") << OP_CHECKSIG;
         CBlock block;
         block.vtx.push_back(txNew);
         block.hashPrevBlock = 0;
         block.hashMerkleRoot = block.BuildMerkleTree();
         block.nVersion = 2;
-        block.nTime    = 1392110340;
-        block.nBits    = 0x1E0FFFFF;
-        block.nNonce   = 1722055;
-        // hash 00000be4a37d9da3b0094ec225c17af40c4e2d75091c76d918b59c47081db380
-        // hashMerkleRoot 64aed35ef0ba8497dd1471514034626f4c877dd1f375a3437732ca794c527aac
+        block.nTime    = 1392193941;
+        block.nBits    = 0x1E00FFFF;
+        block.nNonce   = 4055285;
+        // hash 0000009d66822aa9a834407cc78204c56317271e655d62135b164a7aa908721c
+        // hashMerkleRoot 938f2f4fca7f0c41fba05974ea3625b656b6b52a36ad689878bb4b855a645745
 #endif
 
         //// debug print
@@ -5293,7 +5296,7 @@ bool genGenesisBlockSHA256() {
     block.hashMerkleRoot = block.BuildMerkleTree();
     block.nVersion = 2;
     block.nTime    = GetAdjustedTime();
-    block.nBits    = bnProofOfWorkLimit.GetCompact();
+    block.nBits    = bnProofOfWorkLimits[0].GetCompact();
     block.nNonce   = 0;
 
     uint256 hashTarget = CBigNum().SetCompact(block.nBits).getuint256();
