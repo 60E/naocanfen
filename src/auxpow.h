@@ -83,6 +83,16 @@ public:
     }
 
     uint256 GetPoWHash(int algo) const;
+    
+    void print() const
+    {
+        printf("CAuxPow(version = %d, hash=%s, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u)\n", 
+            vParentBlockHeader.nVersion, vParentBlockHeader.GetHash().ToString().c_str(),
+            vParentBlockHeader.hashPrevBlock.ToString().c_str(),
+            vParentBlockHeader.hashMerkleRoot.ToString().c_str(),
+            vParentBlockHeader.nTime, vParentBlockHeader.nBits, vParentBlockHeader.nNonce
+            );
+    }
 
     IMPLEMENT_SERIALIZE
     (

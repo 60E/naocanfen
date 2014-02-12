@@ -1566,7 +1566,12 @@ public:
         printf("  vMerkleTree: ");
         for (unsigned int i = 0; i < vMerkleTree.size(); i++)
             printf("%s ", vMerkleTree[i].ToString().c_str());
+
         printf("\n");
+        if ( isAuxBlock() )
+        {
+            auxpow.get()->print();
+        }
     }
 
     void SetAuxPow(CAuxPow* pow);

@@ -726,6 +726,7 @@ Value getauxblock(const Array& params, bool fHelp)
         CAuxPow* pow = new CAuxPow();
         ss >> *pow;
         pblock->SetAuxPow(pow);
+        pblock->print();
 
         if (!CheckWork(pblock, *pwalletMain, *pMiningKey))
         {
