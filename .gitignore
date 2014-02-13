@@ -16,7 +16,8 @@ src/test_litecoin
 Makefile
 litecoin-qt
 Litecoin-Qt.app
-
+fusioncoin-qt
+fusioncoind
 # Unit-tests
 Makefile.test
 litecoin-qt_test
