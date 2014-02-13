@@ -1534,7 +1534,6 @@ public:
         }
 
         // Check the header
-        // yueye
         if ( isAuxBlock() && !auxpow.get()->Check(GetHash(), 0))
             return error("CBlock::ReadFromDisk() : AUX POW is not valid");
         

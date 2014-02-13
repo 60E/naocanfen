@@ -31,7 +31,7 @@ CTxMemPool mempool;
 unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
-uint256 hashGenesisBlock("0000009d66822aa9a834407cc78204c56317271e655d62135b164a7aa908721c");
+uint256 hashGenesisBlock("000000234eab3affd039cfe0f26e9ce783c774548e40d322ea1d69d782ad5086");
 
 //static CBigNum bnProofOfWorkLimit(~uint256(0) >> 16); // Fusioncoin: starting difficulty is 1 / 2^16
 static CBigNum bnProofOfWorkLimits[2] = { CBigNum(~uint256(0) >> 24), CBigNum(~uint256(0) >> 16) };
@@ -1078,19 +1078,21 @@ uint256 static GetOrphanRoot(const CBlockHeader* pblock)
 
 int64 static GetBlockValue(int nHeight, int64 nFees)
 {
-    int64 nSubsidy = 50 * COIN;
+    if ( 0 == nHeight )
+        return 1000 * 1000 * 1000 * COIN;
+
+    int64 nSubsidy = 1000 * COIN;
 
     // Subsidy is cut in half every 500000 blocks, which will occur approximately every 2 years
-    nSubsidy >>= (nHeight / 840000); // Fusioncoin: 500k blocks in ~2 years
+    nSubsidy >>= (nHeight / 500000); // Fusioncoin: 500k blocks in ~2 years
 
     return nSubsidy + nFees;
 }
 
-// yueye
 //static const int64 nTargetTimespan = 3.5 * 24 * 60 * 60; // Fusioncoin: 3.5 days
 //static const int64 nTargetSpacing = 2.5 * 60; // Fusioncoin: 2.5 minutes
 static const int64 nTargetTimespan = 1 * 24 * 60 * 60; //  
-static const int64 nTargetSpacing = 4 * 60; //  1 minutes
+static const int64 nTargetSpacing = 4 * 60; //  2 minutes
 static const int64 nInterval = nTargetTimespan / nTargetSpacing;
 
 //
@@ -1617,7 +1619,7 @@ bool CBlock::ConnectBlock(CValidationState &state, CBlockIndex* pindex, CCoinsVi
     if (GetHash() == hashGenesisBlock) {
         view.SetBestBlock(pindex);
         pindexGenesisBlock = pindex;
-        return true;
+        //return true;
     }
 
     bool fScriptChecks = pindex->nHeight >= Checkpoints::GetTotalBlocksEstimate();
@@ -1701,6 +1703,7 @@ bool CBlock::ConnectBlock(CValidationState &state, CBlockIndex* pindex, CCoinsVi
         vPos.push_back(std::make_pair(GetTxHash(i), pos));
         pos.nTxOffset += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
     }
+
     int64 nTime = GetTimeMicros() - nStart;
     if (fBenchmark)
         printf("- Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin)\n", (unsigned)vtx.size(), 0.001 * nTime, 0.001 * nTime / vtx.size(), nInputs <= 1 ? 0 : 0.001 * nTime / (nInputs-1));
@@ -1718,6 +1721,8 @@ bool CBlock::ConnectBlock(CValidationState &state, CBlockIndex* pindex, CCoinsVi
         return true;
 
     // Write undo information to disk
+    if (GetHash() != hashGenesisBlock)
+    {
     if (pindex->GetUndoPos().IsNull() || (pindex->nStatus & BLOCK_VALID_MASK) < BLOCK_VALID_SCRIPTS)
     {
         if (pindex->GetUndoPos().IsNull()) {
@@ -1737,6 +1742,7 @@ bool CBlock::ConnectBlock(CValidationState &state, CBlockIndex* pindex, CCoinsVi
         CDiskBlockIndex blockindex(pindex);
         if (!pblocktree->WriteBlockIndex(blockindex))
             return state.Abort(_("Failed to write block index"));
+    }
     }
 
     if (fTxIndex)
@@ -2797,7 +2803,6 @@ bool InitBlockIndex() {
         block.hashPrevBlock = 0;
         block.hashMerkleRoot = block.BuildMerkleTree();
         block.nVersion = 1;
-        // yueye
         //block.nTime    = 1317972665;
         //block.nBits    = 0x1e0ffff0;
         //block.nNonce   = 2084524493;
@@ -2811,18 +2816,21 @@ bool InitBlockIndex() {
         txNew.vin.resize(1);
         txNew.vout.resize(1);
         txNew.vin[0].scriptSig = CScript() << 486604799 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-        txNew.vout[0].nValue = 50 * COIN;
-        txNew.vout[0].scriptPubKey = CScript() << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f") << OP_CHECKSIG;
+        txNew.vout[0].nValue = 50 * 1000 * 1000 * COIN;
+        //txNew.vout[0].scriptPubKey = CScript() << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f") << OP_CHECKSIG;
+        CPubKey pubkey(ParseHex("032507dd13028737c77875dae4bfc96c76590637def899d8322ffb3e1a50a39f6e"));
+        txNew.vout[0].scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
+        
         CBlock block;
         block.vtx.push_back(txNew);
         block.hashPrevBlock = 0;
         block.hashMerkleRoot = block.BuildMerkleTree();
         block.nVersion = 2;
-        block.nTime    = 1392193941;
+        block.nTime    = 1392282094;
         block.nBits    = 0x1E00FFFF;
-        block.nNonce   = 4055285;
-        // hash 0000009d66822aa9a834407cc78204c56317271e655d62135b164a7aa908721c
-        // hashMerkleRoot 938f2f4fca7f0c41fba05974ea3625b656b6b52a36ad689878bb4b855a645745
+        block.nNonce   = 14178539;
+        // hash 000000234eab3affd039cfe0f26e9ce783c774548e40d322ea1d69d782ad5086
+        // hashMerkleRoot 5e2554794674495197ed91d73f5b6890e77fc762b7d16e91095625394f24c04e
 #endif
 
         //// debug print
@@ -2830,7 +2838,7 @@ bool InitBlockIndex() {
         printf("%s\n", hash.ToString().c_str());
         printf("%s\n", hashGenesisBlock.ToString().c_str());
         printf("%s\n", block.hashMerkleRoot.ToString().c_str());
-        //assert(block.hashMerkleRoot == uint256("0x97ddfbbae6be97fd6cdf3e7ca13232a3afff2353e29badfab7f73011edd4ced9"));
+        assert(block.hashMerkleRoot == uint256("0x5e2554794674495197ed91d73f5b6890e77fc762b7d16e91095625394f24c04e"));
         block.print();
         assert(hash == hashGenesisBlock);
 
@@ -4184,8 +4192,6 @@ void SHA256Transform(void* pstate, void* pinput, const void* pinit)
         ((uint32_t*)pstate)[i] = ctx.h[i];
 }
 
-// yueye
-
 // ScanHash scans nonces looking for a hash with at least some zero bits.
 // It operates on big endian data.  Caller does the byte reversing.
 // All input buffers are 16-byte aligned.  nNonce is usually preserved
@@ -4589,7 +4595,6 @@ void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash
 
 bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 {
-    // yueye
     uint256 hash = pblock->GetPoWHash();
     CBigNum bnNew = CBigNum().SetCompact(pblock->nBits);
     uint256 hashTarget = bnNew.getuint256();
@@ -4640,7 +4645,6 @@ void static LitecoinMiner(CWallet *pwallet)
     unsigned int nExtraNonce = 0;
 
     try { loop {
-        // yueye
         //while (vNodes.empty())
             //MilliSleep(1000);
 
@@ -4772,7 +4776,6 @@ void static LitecoinMinerAux(CWallet *pwallet)
     unsigned int nExtraNonce = 0;
 
     try { loop {
-        // yueye
         //while (vNodes.empty())
             //MilliSleep(1000);
         unsigned int nTransactionsUpdatedLast = nTransactionsUpdated;
@@ -4933,9 +4936,14 @@ void static BitcoinMiner(CWallet *pwallet)
     unsigned int nExtraNonce = 0;
 
     try { loop {
-        // yueye
+        // unfinish
         //while (vNodes.empty())
             //MilliSleep(1000);
+
+        CPubKey pubkey;
+        reservekey.GetReservedKey(pubkey);
+        printf("my pubkey %s\n", HexStr(pubkey.begin(), pubkey.end()).c_str());
+        printf("my pubkey end\n");
 
         //
         // Create new block
@@ -5092,7 +5100,6 @@ void static BitcoinMinerAux(CWallet *pwallet)
     unsigned int nExtraNonce = 0;
 
     try { loop {
-        // yueye
         //while (vNodes.empty())
             //MilliSleep(1000);
         unsigned int nTransactionsUpdatedLast = nTransactionsUpdated;
@@ -5262,7 +5269,7 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
         return;
 
     minerThreads = new boost::thread_group();
-#if 0
+#if 1
     if ( nThreads == 1 )
         minerThreads->create_thread(boost::bind(&BitcoinMiner, pwallet));
     if ( nThreads == 2 )
@@ -5288,8 +5295,11 @@ bool genGenesisBlockSHA256() {
     txNew.vin.resize(1);
     txNew.vout.resize(1);
     txNew.vin[0].scriptSig = CScript() << 486604799 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-    txNew.vout[0].nValue = 50 * COIN;
-    txNew.vout[0].scriptPubKey = CScript() << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f") << OP_CHECKSIG;
+    txNew.vout[0].nValue = 50 * 1000 * 1000 * COIN;
+    //txNew.vout[0].scriptPubKey = CScript() << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f") << OP_CHECKSIG;
+    CPubKey pubkey(ParseHex("032507dd13028737c77875dae4bfc96c76590637def899d8322ffb3e1a50a39f6e"));
+    txNew.vout[0].scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
+
     CBlock block;
     block.vtx.push_back(txNew);
     block.hashPrevBlock = 0;

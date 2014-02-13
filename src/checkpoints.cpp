@@ -123,7 +123,7 @@ namespace Checkpoints
 
     int GetTotalBlocksEstimate()
     {
-    // yueye
+    // unfinish
     return 0;
         if (fTestNet) return 0; // Testnet has no checkpoints
         if (!GetBoolArg("-checkpoints", true))
@@ -136,7 +136,7 @@ namespace Checkpoints
 
     CBlockIndex* GetLastCheckpoint(const std::map<uint256, CBlockIndex*>& mapBlockIndex)
     {
-    // yueye
+    // unfinish
     return NULL;
         if (fTestNet) return NULL; // Testnet has no checkpoints
         if (!GetBoolArg("-checkpoints", true))

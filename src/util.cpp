@@ -245,7 +245,6 @@ int OutputDebugStringF(const char* pszFormat, ...)
         ret += vprintf(pszFormat, arg_ptr);
         va_end(arg_ptr);
     }
-    // yueye
     else if (!fPrintToDebugger)
     //if (!fPrintToDebugger)
     {

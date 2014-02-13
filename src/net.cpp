@@ -1781,7 +1781,7 @@ void StartNode(boost::thread_group& threadGroup)
     // Start threads
     //
 
-// yueye  
+// unfinish  
 //    if (!GetBoolArg("-dnsseed", true))
 //        printf("DNS seeding disabled\n");
 //    else
