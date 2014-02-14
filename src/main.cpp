@@ -1539,7 +1539,9 @@ bool CBlock::DisconnectBlock(CValidationState &state, CBlockIndex *pindex, CCoin
                 const CTxInUndo &undo = txundo.vprevout[j];
                 CCoins coins;
                 view.GetCoins(out.hash, coins); // this can fail if the prevout was already entirely spent
-                if (undo.nHeight != 0) {
+                // unfinish GenesisBlock spendable
+                //if (undo.nHeight != 0)
+                {
                     // undo data contains height: this is the last output of the prevout tx being spent
                     if (!coins.IsPruned())
                         fClean = fClean && error("DisconnectBlock() : undo data overwriting existing transaction");
@@ -1547,10 +1549,11 @@ bool CBlock::DisconnectBlock(CValidationState &state, CBlockIndex *pindex, CCoin
                     coins.fCoinBase = undo.fCoinBase;
                     coins.nHeight = undo.nHeight;
                     coins.nVersion = undo.nVersion;
-                } else {
-                    if (coins.IsPruned())
-                        fClean = fClean && error("DisconnectBlock() : undo data adding output to missing transaction");
-                }
+                } 
+                //else {
+                //    if (coins.IsPruned())
+                //        fClean = fClean && error("DisconnectBlock() : undo data adding output to missing transaction");
+                //}
                 if (coins.IsAvailable(out.n))
                     fClean = fClean && error("DisconnectBlock() : undo data overwriting existing output");
                 if (coins.vout.size() < out.n+1)
@@ -1721,16 +1724,24 @@ bool CBlock::ConnectBlock(CValidationState &state, CBlockIndex* pindex, CCoinsVi
         return true;
 
     // Write undo information to disk
-    if (GetHash() != hashGenesisBlock)
-    {
     if (pindex->GetUndoPos().IsNull() || (pindex->nStatus & BLOCK_VALID_MASK) < BLOCK_VALID_SCRIPTS)
     {
         if (pindex->GetUndoPos().IsNull()) {
             CDiskBlockPos pos;
             if (!FindUndoPos(state, pindex->nFile, pos, ::GetSerializeSize(blockundo, SER_DISK, CLIENT_VERSION) + 40))
                 return error("ConnectBlock() : FindUndoPos failed");
-            if (!blockundo.WriteToDisk(pos, pindex->pprev->GetBlockHash()))
-                return state.Abort(_("Failed to write undo data"));
+            
+            if (GetHash() != hashGenesisBlock)
+            {
+                if (!blockundo.WriteToDisk(pos, pindex->pprev->GetBlockHash()))
+                    return state.Abort(_("Failed to write undo data"));
+            }
+            else
+            {
+                printf("GenesisBlock write undo information");
+                if (!blockundo.WriteToDisk(pos, hashGenesisBlock))
+                    return state.Abort(_("Failed to write undo data"));
+            }
 
             // update nUndoPos in block index
             pindex->nUndoPos = pos.nPos;
@@ -1742,7 +1753,6 @@ bool CBlock::ConnectBlock(CValidationState &state, CBlockIndex* pindex, CCoinsVi
         CDiskBlockIndex blockindex(pindex);
         if (!pblocktree->WriteBlockIndex(blockindex))
             return state.Abort(_("Failed to write block index"));
-    }
     }
 
     if (fTxIndex)
@@ -5269,7 +5279,7 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
         return;
 
     minerThreads = new boost::thread_group();
-#if 1
+#if 0
     if ( nThreads == 1 )
         minerThreads->create_thread(boost::bind(&BitcoinMiner, pwallet));
     if ( nThreads == 2 )
