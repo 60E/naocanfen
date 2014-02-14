@@ -1539,8 +1539,7 @@ bool CBlock::DisconnectBlock(CValidationState &state, CBlockIndex *pindex, CCoin
                 const CTxInUndo &undo = txundo.vprevout[j];
                 CCoins coins;
                 view.GetCoins(out.hash, coins); // this can fail if the prevout was already entirely spent
-                // unfinish GenesisBlock spendable
-                //if (undo.nHeight != 0)
+                if (undo.nHeight != 0)
                 {
                     // undo data contains height: this is the last output of the prevout tx being spent
                     if (!coins.IsPruned())
