@@ -126,7 +126,7 @@ uint256 CAuxPow::GetPoWHash(int algo) const
     if ( CBlockHeader::BLOCK_ALGO_SCRYPT == algo )
     {
         uint256 thash;
-        scrypt_1024_1_1_256(BEGIN(vParentBlockHeader.nVersion), 80, BEGIN(thash));
+        scrypt_1024_1_1_256(BEGIN(vParentBlockHeader.nVersion), BEGIN(thash));
         return thash;
     }
     else

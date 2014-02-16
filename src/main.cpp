@@ -4699,7 +4699,7 @@ void static LitecoinMiner(CWallet *pwallet)
             uint256 thash;
             loop
             {
-                scrypt_1024_1_1_256(BEGIN(pblock->nVersion), CBlockHeader::BLOCK_HEADER_LEN, BEGIN(thash));
+                scrypt_1024_1_1_256(BEGIN(pblock->nVersion), BEGIN(thash));
 
                 if (thash <= hashTarget)
                 {
@@ -4851,7 +4851,7 @@ void static LitecoinMinerAux(CWallet *pwallet)
             {
                 pblock->nNonce += 1;
                 nHashesDone += 1;
-                scrypt_1024_1_1_256(BEGIN(pblock->nVersion), 80, BEGIN(thash));
+                scrypt_1024_1_1_256(BEGIN(pblock->nVersion), BEGIN(thash));
 
                 if (thash <= hashTarget)
                 {

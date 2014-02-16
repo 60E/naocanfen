@@ -1413,7 +1413,7 @@ public:
         else if ( CBlockHeader::VERSION_SCRYPT & nVersion )
         {
             uint256 thash;
-            scrypt_1024_1_1_256(BEGIN(nVersion), CBlockHeader::BLOCK_HEADER_LEN, BEGIN(thash));
+            scrypt_1024_1_1_256(BEGIN(nVersion), BEGIN(thash));
             return thash;
         }
         else

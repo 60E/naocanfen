@@ -243,7 +243,7 @@ static inline void xor_salsa8(uint32_t B[16], const uint32_t Bx[16])
 	B[15] += x15;
 }
 
-void scrypt_1024_1_1_256_sp_generic(const char *input, int input_len, char *output, char *scratchpad)
+void scrypt_1024_1_1_256_sp_generic(const char *input, char *output, char *scratchpad)
 {
 	uint8_t B[128];
 	uint32_t X[32];
@@ -252,7 +252,7 @@ void scrypt_1024_1_1_256_sp_generic(const char *input, int input_len, char *outp
 
 	V = (uint32_t *)(((uintptr_t)(scratchpad) + 63) & ~ (uintptr_t)(63));
 	
-	PBKDF2_SHA256((const uint8_t *)input, input_len, (const uint8_t *)input, input_len, 1, B, 128);
+	PBKDF2_SHA256((const uint8_t *)input, 80, (const uint8_t *)input, 80, 1, B, 128);
 
 	for (k = 0; k < 32; k++)
 		X[k] = le32dec(&B[4 * k]);
@@ -273,7 +273,7 @@ void scrypt_1024_1_1_256_sp_generic(const char *input, int input_len, char *outp
 	for (k = 0; k < 32; k++)
 		le32enc(&B[4 * k], X[k]);
 
-	PBKDF2_SHA256((const uint8_t *)input, input_len, B, 128, 1, (uint8_t *)output, 32);
+	PBKDF2_SHA256((const uint8_t *)input, 80, B, 128, 1, (uint8_t *)output, 32);
 }
 
 #if defined(USE_SSE2)
@@ -285,7 +285,7 @@ void scrypt_detect_sse2(unsigned int cpuid_edx)
 }
 #else
 /* Detect SSE2 */
-void (*scrypt_1024_1_1_256_sp)(const char *input, int input_len, char *output, char *scratchpad);
+void (*scrypt_1024_1_1_256_sp)(const char *input, char *output, char *scratchpad);
 
 void scrypt_detect_sse2(unsigned int cpuid_edx)
 {
@@ -303,7 +303,7 @@ void scrypt_detect_sse2(unsigned int cpuid_edx)
 #endif
 #endif
 
-void scrypt_1024_1_1_256(const char *input, int input_len, char *output)
+void scrypt_1024_1_1_256(const char *input, char *output)
 {
 	char scratchpad[SCRYPT_SCRATCHPAD_SIZE];
 #if defined(USE_SSE2)
@@ -311,13 +311,13 @@ void scrypt_1024_1_1_256(const char *input, int input_len, char *output)
         // it is faster to use directly than to use a function pointer or conditional.
 #if defined(_M_X64) || defined(__x86_64__) || defined(_M_AMD64) || (defined(MAC_OSX) && defined(__i386__))
         // Always SSE2: x86_64 or Intel MacOS X
-        scrypt_1024_1_1_256_sp_sse2(input, input_len, output, scratchpad);
+        scrypt_1024_1_1_256_sp_sse2(input, output, scratchpad);
 #else
         // Detect SSE2: 32bit x86 Linux or Windows
-        scrypt_1024_1_1_256_sp(input, input_len, output, scratchpad);
+        scrypt_1024_1_1_256_sp(input, output, scratchpad);
 #endif
 #else
         // Generic scrypt
-        scrypt_1024_1_1_256_sp_generic(input, input_len, output, scratchpad);
+        scrypt_1024_1_1_256_sp_generic(input, output, scratchpad);
 #endif
 }

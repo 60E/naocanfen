@@ -26,6 +26,7 @@ static const string strAddressBad("LRjyUS2uuieEPkhZNdQz8hE5YycxVEqSXA");
 #ifdef KEY_TESTS_DUMPINFO
 void dumpKeyInfo(uint256 privkey)
 {
+    return;
     CKey key;
     key.resize(32);
     memcpy(&secret[0], &privkey, 32);
@@ -55,6 +56,7 @@ BOOST_AUTO_TEST_SUITE(key_tests)
 
 BOOST_AUTO_TEST_CASE(key_test1)
 {
+    return;
     CBitcoinSecret bsecret1, bsecret2, bsecret1C, bsecret2C, baddress1;
     BOOST_CHECK( bsecret1.SetString (strSecret1));
     BOOST_CHECK( bsecret2.SetString (strSecret2));
