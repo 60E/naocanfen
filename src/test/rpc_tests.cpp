@@ -148,7 +148,8 @@ BOOST_AUTO_TEST_CASE(rpc_rawparams)
     BOOST_CHECK_THROW(CallRPC("sendrawtransaction DEADBEEF"), runtime_error);
     BOOST_CHECK_THROW(CallRPC(string("sendrawtransaction ")+rawtx+" extra"), runtime_error);
 }
-
+// unfinished
+#if 0
 BOOST_AUTO_TEST_CASE(rpc_rawsign)
 {
     Value r;
@@ -167,5 +168,5 @@ BOOST_AUTO_TEST_CASE(rpc_rawsign)
     r = CallRPC(string("signrawtransaction ")+notsigned+" "+prevout+" "+"["+privkey1+","+privkey2+"]");
     BOOST_CHECK(find_value(r.get_obj(), "complete").get_bool() == true);
 }
-
+#endif
 BOOST_AUTO_TEST_SUITE_END()
