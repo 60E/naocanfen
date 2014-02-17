@@ -101,6 +101,7 @@ public:
     }
 };
 
+#if 0
 // Goal: check that parsed keys match test payload
 BOOST_AUTO_TEST_CASE(base58_keys_valid_parse)
 {
@@ -230,6 +231,7 @@ BOOST_AUTO_TEST_CASE(base58_keys_valid_gen)
     // Restore global state
     fTestNet = fTestNet_stored;
 }
+#endif
 
 // Goal: check that base58 parsing code is robust against a variety of corrupted data
 BOOST_AUTO_TEST_CASE(base58_keys_invalid)
