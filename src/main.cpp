@@ -2760,7 +2760,7 @@ bool LoadBlockIndex()
         pchMessageStart[1] = 0xc1;
         pchMessageStart[2] = 0xb7;
         pchMessageStart[3] = 0xdc;
-        hashGenesisBlock = uint256("0xf5ae71e26c74beacc88382716aced69cddf3dffff24f384e1808905e0188f68f");
+        hashGenesisBlock = uint256("0x000000b8e2a174f9f1f8c28397ccbda39aa4ed1c8ecc82f9954498974c38bcc5");
     }
 
     //
@@ -2777,7 +2777,6 @@ bool genGenesisBlock() ;
 bool genGenesisBlockSHA256() ;
 bool InitBlockIndex() {
     //return genGenesisBlockSHA256();
-    //return genGenesisBlock();
     // Check whether we're already initialized
     if (pindexGenesisBlock != NULL)
         return true;
@@ -2835,10 +2834,19 @@ bool InitBlockIndex() {
         block.hashPrevBlock = 0;
         block.hashMerkleRoot = block.BuildMerkleTree();
         block.nVersion = 2;
-        block.nTime    = 1392282094;
         block.nBits    = 0x1E00FFFF;
-        block.nNonce   = 14178539;
+        if (fTestNet)
+        {
+            block.nTime    = 1392785966;
+            block.nNonce   = 54241496;
+        }
+        else
+        {
+            block.nTime    = 1392282094;
+            block.nNonce   = 14178539;
+        }
         // hash 000000234eab3affd039cfe0f26e9ce783c774548e40d322ea1d69d782ad5086
+        // test hash 000000b8e2a174f9f1f8c28397ccbda39aa4ed1c8ecc82f9954498974c38bcc5
         // hashMerkleRoot 5e2554794674495197ed91d73f5b6890e77fc762b7d16e91095625394f24c04e
 #endif
 
