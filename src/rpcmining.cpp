@@ -150,7 +150,12 @@ Value getmininginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("blocks",        (int)nBestHeight));
     obj.push_back(Pair("currentblocksize",(uint64_t)nLastBlockSize));
     obj.push_back(Pair("currentblocktx",(uint64_t)nLastBlockTx));
-    obj.push_back(Pair("difficulty",    (double)GetDifficulty()));
+    
+    int algo = CBlockHeader::BLOCK_ALGO_SHA256;
+    std::string strCmd = GetArg("-miningalgo", "sha256");
+    if ( 0 == strCmd.compare("scrypt") )
+        algo = CBlockHeader::BLOCK_ALGO_SCRYPT;
+    obj.push_back(Pair("difficulty",    (double)GetDifficulty(algo)));
     obj.push_back(Pair("errors",        GetWarnings("statusbar")));
     obj.push_back(Pair("generate",      GetBoolArg("-gen")));
     obj.push_back(Pair("genproclimit",  (int)GetArg("-genproclimit", -1)));

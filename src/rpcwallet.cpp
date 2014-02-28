@@ -80,7 +80,13 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("timeoffset",    (boost::int64_t)GetTimeOffset()));
     obj.push_back(Pair("connections",   (int)vNodes.size()));
     obj.push_back(Pair("proxy",         (proxy.first.IsValid() ? proxy.first.ToStringIPPort() : string())));
-    obj.push_back(Pair("difficulty",    (double)GetDifficulty()));
+
+    
+    int algo = CBlockHeader::BLOCK_ALGO_SHA256;
+    std::string strCmd = GetArg("-miningalgo", "sha256");
+    if ( 0 == strCmd.compare("scrypt") )
+        algo = CBlockHeader::BLOCK_ALGO_SCRYPT;
+    obj.push_back(Pair("difficulty",    (double)GetDifficulty(algo)));
     obj.push_back(Pair("difficulty_sha256",    (double)GetDifficulty(CBlockHeader::BLOCK_ALGO_SHA256)));
     obj.push_back(Pair("difficulty_scrypt",    (double)GetDifficulty(CBlockHeader::BLOCK_ALGO_SCRYPT)));
     obj.push_back(Pair("testnet",       fTestNet));
