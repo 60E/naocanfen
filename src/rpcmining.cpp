@@ -14,7 +14,8 @@ using namespace std;
 // Return average network hashes per second based on the last 'lookup' blocks,
 // or from the last difficulty change if 'lookup' is nonpositive.
 // If 'height' is nonnegative, compute the estimate at the time when a given block was found.
-Value GetNetworkHashPS(int lookup, int height) {
+Value GetNetworkHashPS(int lookup, int height, int algo) {
+    //printf("GetNetworkHashPS algo=%d\n", algo);
     CBlockIndex *pb = pindexBest;
 
     if (height >= 0 && height < nBestHeight)
@@ -22,6 +23,13 @@ Value GetNetworkHashPS(int lookup, int height) {
 
     if (pb == NULL || !pb->nHeight)
         return 0;
+
+    while ( CBlockHeader::GetBlockAlgo(pb->nVersion) != algo)
+    {
+        pb = pb->pprev;
+        if ( NULL == pb )
+            return 0;
+    }
 
     // If lookup is -1, then use blocks since last difficulty change.
     if (lookup <= 0)
@@ -34,12 +42,21 @@ Value GetNetworkHashPS(int lookup, int height) {
     CBlockIndex *pb0 = pb;
     int64 minTime = pb0->GetBlockTime();
     int64 maxTime = minTime;
-    for (int i = 0; i < lookup; i++) {
+    int i;
+    for (i = 0; i < lookup; ) {
         pb0 = pb0->pprev;
-        int64 time = pb0->GetBlockTime();
-        minTime = std::min(time, minTime);
-        maxTime = std::max(time, maxTime);
+        if ( NULL == pb0 )
+            break;
+
+        if ( CBlockHeader::GetBlockAlgo(pb0->nVersion) == algo)
+        {
+            int64 time = pb0->GetBlockTime();
+            minTime = std::min(time, minTime);
+            maxTime = std::max(time, maxTime);
+            i++;
+        }
     }
+    //printf("GetNetworkHashPS lookup=%d\n", i);
 
     // In case there's a situation where minTime == maxTime, we don't want a divide by zero exception.
     if (minTime == maxTime)
@@ -59,10 +76,37 @@ Value getnetworkhashps(const Array& params, bool fHelp)
             "Returns the estimated network hashes per second based on the last 120 blocks.\n"
             "Pass in [blocks] to override # of blocks, -1 specifies since last difficulty change.\n"
             "Pass in [height] to estimate the network speed at the time when a certain block was found.");
+    int algo = CBlockHeader::BLOCK_ALGO_SHA256;
+    std::string strCmd = GetArg("-miningalgo", "sha256");
+    if ( 0 == strCmd.compare("scrypt") )
+        algo = CBlockHeader::BLOCK_ALGO_SCRYPT;
 
-    return GetNetworkHashPS(params.size() > 0 ? params[0].get_int() : 120, params.size() > 1 ? params[1].get_int() : -1);
+    return GetNetworkHashPS(params.size() > 0 ? params[0].get_int() : 120, params.size() > 1 ? params[1].get_int() : -1, algo);
 }
 
+Value getnetworkhashps_sha256d(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 2)
+        throw runtime_error(
+            "getnetworkhashps [blocks] [height]\n"
+            "Returns the estimated network hashes per second based on the last 120 blocks.\n"
+            "Pass in [blocks] to override # of blocks, -1 specifies since last difficulty change.\n"
+            "Pass in [height] to estimate the network speed at the time when a certain block was found.");
+
+    return GetNetworkHashPS(params.size() > 0 ? params[0].get_int() : 120, params.size() > 1 ? params[1].get_int() : -1, CBlockHeader::BLOCK_ALGO_SHA256);
+}
+
+Value getnetworkhashps_scrypt(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 2)
+        throw runtime_error(
+            "getnetworkhashps [blocks] [height]\n"
+            "Returns the estimated network hashes per second based on the last 120 blocks.\n"
+            "Pass in [blocks] to override # of blocks, -1 specifies since last difficulty change.\n"
+            "Pass in [height] to estimate the network speed at the time when a certain block was found.");
+
+    return GetNetworkHashPS(params.size() > 0 ? params[0].get_int() : 120, params.size() > 1 ? params[1].get_int() : -1, CBlockHeader::BLOCK_ALGO_SCRYPT);
+}
 
 // Key used by getwork/getblocktemplate miners.
 // Allocated in InitRPCMining, free'd in ShutdownRPCMining
