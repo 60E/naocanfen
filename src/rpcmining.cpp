@@ -43,6 +43,7 @@ Value GetNetworkHashPS(int lookup, int height, int algo) {
     int64 minTime = pb0->GetBlockTime();
     int64 maxTime = minTime;
     int i;
+    uint256 workDiff(0);
     for (i = 0; i < lookup; ) {
         pb0 = pb0->pprev;
         if ( NULL == pb0 )
@@ -54,6 +55,7 @@ Value GetNetworkHashPS(int lookup, int height, int algo) {
             minTime = std::min(time, minTime);
             maxTime = std::max(time, maxTime);
             i++;
+            workDiff = workDiff + pb0->GetBlockWork().getuint256();
         }
     }
     //printf("GetNetworkHashPS lookup=%d\n", i);
@@ -62,7 +64,10 @@ Value GetNetworkHashPS(int lookup, int height, int algo) {
     if (minTime == maxTime)
         return 0;
 
-    uint256 workDiff = pb->nChainWork - pb0->nChainWork;
+    if ( algo == CBlockHeader::BLOCK_ALGO_SCRYPT )
+        workDiff >>= 12;
+
+    //uint256 workDiff = pb->nChainWork - pb0->nChainWork;
     int64 timeDiff = maxTime - minTime;
 
     return (boost::int64_t)(workDiff.getdouble() / timeDiff);

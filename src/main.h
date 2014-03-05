@@ -1818,7 +1818,16 @@ public:
         bnTarget.SetCompact(nBits);
         if (bnTarget <= 0)
             return 0;
-        return (CBigNum(1)<<256) / (bnTarget+1);
+
+        CBigNum work = (CBigNum(1)<<256) / (bnTarget+1);
+        
+        // Apply scrypt-to-SHA ratio
+        // We assume that scrypt is 2^12 times harder to mine (for the same difficulty target)
+        // This only affects how a longer chain is selected in case of conflict
+        if ( CBlockHeader::BLOCK_ALGO_SCRYPT == CBlockHeader::GetBlockAlgo(nVersion) )
+            work <<= 12;
+
+        return work;
     }
 
     bool IsInMainChain() const
