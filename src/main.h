@@ -54,7 +54,7 @@ static const int64 DUST_SOFT_LIMIT = 100000; // 0.001 LTC
 /** Dust Hard Limit, ignored as wallet inputs (mininput default) */
 static const int64 DUST_HARD_LIMIT = 1000;   // 0.00001 LTC mininput
 /** No amount larger than this (in satoshi) is valid */
-static const int64 MAX_MONEY = 84000000 * COIN;
+static const int64 MAX_MONEY = 1000 * 1000 * 1000 * COIN;
 inline bool MoneyRange(int64 nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 /** Coinbase transaction outputs can only be spent after this number of new blocks (network rule) */
 static const int COINBASE_MATURITY = 100;
@@ -1822,10 +1822,10 @@ public:
         CBigNum work = (CBigNum(1)<<256) / (bnTarget+1);
         
         // Apply scrypt-to-SHA ratio
-        // We assume that scrypt is 2^12 times harder to mine (for the same difficulty target)
+        // We assume that scrypt is 2^15 times harder to mine (for the same difficulty target)
         // This only affects how a longer chain is selected in case of conflict
         if ( CBlockHeader::BLOCK_ALGO_SCRYPT == CBlockHeader::GetBlockAlgo(nVersion) )
-            work <<= 12;
+            work <<= 15;
 
         return work;
     }

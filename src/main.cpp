@@ -31,11 +31,9 @@ CTxMemPool mempool;
 unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
-uint256 hashGenesisBlock("000000234eab3affd039cfe0f26e9ce783c774548e40d322ea1d69d782ad5086");
+uint256 hashGenesisBlock("0000000057b217393c2f54750034d2262225096a69df85c7866b4d3c5b12310b");
 
-//static CBigNum bnProofOfWorkLimit(~uint256(0) >> 16); // Fusioncoin: starting difficulty is 1 / 2^16
-static CBigNum bnProofOfWorkLimits[2] = { CBigNum(~uint256(0) >> 24), CBigNum(~uint256(0) >> 16) };
-//static CBigNum bnInitialHashTarget[2] = { CBigNum(~uint256(0) >> 24), CBigNum(~uint256(0) >> 16) };
+static CBigNum bnProofOfWorkLimits[2] = { CBigNum(~uint256(0) >> 32), CBigNum(~uint256(0) >> 20) };
 
 CBlockIndex* pindexGenesisBlock = NULL;
 int nBestHeight = -1;
@@ -1079,19 +1077,17 @@ uint256 static GetOrphanRoot(const CBlockHeader* pblock)
 int64 static GetBlockValue(int nHeight, int64 nFees)
 {
     if ( 0 == nHeight )
-        return 1000 * 1000 * 1000 * COIN;
+        return 20 * 1000 * 1000 * COIN;
 
     int64 nSubsidy = 1000 * COIN;
 
-    // Subsidy is cut in half every 500000 blocks, which will occur approximately every 2 years
-    nSubsidy >>= (nHeight / 500000); // Fusioncoin: 500k blocks in ~2 years
+    // Subsidy is cut in half every 490000 blocks, which will occur approximately every 2 years
+    nSubsidy >>= (nHeight / 490000);
 
     return nSubsidy + nFees;
 }
 
-//static const int64 nTargetTimespan = 3.5 * 24 * 60 * 60; // Fusioncoin: 3.5 days
-//static const int64 nTargetSpacing = 2.5 * 60; // Fusioncoin: 2.5 minutes
-static const int64 nTargetTimespan = 1 * 24 * 60 * 60; //  
+static const int64 nTargetTimespan = 1 * 24 * 60 * 60; //  1 days
 static const int64 nTargetSpacing = 4 * 60; //  2 minutes
 static const int64 nInterval = nTargetTimespan / nTargetSpacing;
 
@@ -2819,14 +2815,13 @@ bool InitBlockIndex() {
         block.nNonce   = 17290;
 #else
         //const char* pszTimestamp = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";
-        const char* pszTimestamp = "Fusioncoin project start!";
+        const char* pszTimestamp = "B1C4E1EA1B3C05944851D026DC5985EC7EB807547334E5E944AA3D4E8191D486";
         CTransaction txNew;
         txNew.vin.resize(1);
         txNew.vout.resize(1);
         txNew.vin[0].scriptSig = CScript() << 486604799 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-        txNew.vout[0].nValue = 50 * 1000 * 1000 * COIN;
-        //txNew.vout[0].scriptPubKey = CScript() << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f") << OP_CHECKSIG;
-        CPubKey pubkey(ParseHex("032507dd13028737c77875dae4bfc96c76590637def899d8322ffb3e1a50a39f6e"));
+        txNew.vout[0].nValue = 20 * 1000 * 1000 * COIN;
+        CPubKey pubkey(ParseHex("030965d67867dfe21f9303ed2369971cc1e0cee55bcf997700fdc2783d1d7f5bb6"));
         txNew.vout[0].scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
         
         CBlock block;
@@ -2834,7 +2829,7 @@ bool InitBlockIndex() {
         block.hashPrevBlock = 0;
         block.hashMerkleRoot = block.BuildMerkleTree();
         block.nVersion = 2;
-        block.nBits    = 0x1E00FFFF;
+        block.nBits    = 0x1D00FFFF;
         if (fTestNet)
         {
             block.nTime    = 1392785966;
@@ -2842,12 +2837,10 @@ bool InitBlockIndex() {
         }
         else
         {
-            block.nTime    = 1392282094;
-            block.nNonce   = 14178539;
+            block.nTime    = 1394376646;
+            block.nNonce   = 856133085;
         }
-        // hash 000000234eab3affd039cfe0f26e9ce783c774548e40d322ea1d69d782ad5086
         // test hash 000000b8e2a174f9f1f8c28397ccbda39aa4ed1c8ecc82f9954498974c38bcc5
-        // hashMerkleRoot 5e2554794674495197ed91d73f5b6890e77fc762b7d16e91095625394f24c04e
 #endif
 
         //// debug print
@@ -2855,7 +2848,7 @@ bool InitBlockIndex() {
         printf("%s\n", hash.ToString().c_str());
         printf("%s\n", hashGenesisBlock.ToString().c_str());
         printf("%s\n", block.hashMerkleRoot.ToString().c_str());
-        assert(block.hashMerkleRoot == uint256("0x5e2554794674495197ed91d73f5b6890e77fc762b7d16e91095625394f24c04e"));
+        assert(block.hashMerkleRoot == uint256("0xa05af0d519adf9b766bbcebaaf3d21837661ecc0f2896428cf682677101fecea"));
         block.print();
         assert(hash == hashGenesisBlock);
 
@@ -5298,23 +5291,22 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
 #else
     for (int i = 0; i < nThreads; i++){
         if ( i % 2 )
-            minerThreads->create_thread(boost::bind(&BitcoinMiner, pwallet));
-        else
             minerThreads->create_thread(boost::bind(&LitecoinMiner, pwallet));
+        else
+            minerThreads->create_thread(boost::bind(&BitcoinMiner, pwallet));
     }
 #endif
 }
 
 bool genGenesisBlockSHA256() {
     printf("genGenesisBlock\n");
-    const char* pszTimestamp = "Fusioncoin project start!";
+    const char* pszTimestamp = "B1C4E1EA1B3C05944851D026DC5985EC7EB807547334E5E944AA3D4E8191D486";
     CTransaction txNew;
     txNew.vin.resize(1);
     txNew.vout.resize(1);
     txNew.vin[0].scriptSig = CScript() << 486604799 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-    txNew.vout[0].nValue = 50 * 1000 * 1000 * COIN;
-    //txNew.vout[0].scriptPubKey = CScript() << ParseHex("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f") << OP_CHECKSIG;
-    CPubKey pubkey(ParseHex("032507dd13028737c77875dae4bfc96c76590637def899d8322ffb3e1a50a39f6e"));
+    txNew.vout[0].nValue = 20 * 1000 * 1000 * COIN;
+    CPubKey pubkey(ParseHex("030965d67867dfe21f9303ed2369971cc1e0cee55bcf997700fdc2783d1d7f5bb6"));
     txNew.vout[0].scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
 
     CBlock block;
@@ -5326,6 +5318,11 @@ bool genGenesisBlockSHA256() {
     block.nBits    = bnProofOfWorkLimits[0].GetCompact();
     block.nNonce   = 0;
 
+    printf("header %s\n", HexStr(BEGIN(block), BEGIN(block) + 80).c_str());
+    printf("%d\n", block.nTime);
+    printf("0x%02X\n", block.nBits);
+    printf("%s\n", block.hashMerkleRoot.ToString().c_str());
+
     uint256 hashTarget = CBigNum().SetCompact(block.nBits).getuint256();
 
     loop
@@ -5336,6 +5333,12 @@ bool genGenesisBlockSHA256() {
         {
             // Found a solution
             break;
+        }
+
+        if (block.nNonce == 0xFFFFFFFF)
+        {
+            block.nNonce = 0;
+            block.nTime    = GetAdjustedTime();
         }
     }
 
