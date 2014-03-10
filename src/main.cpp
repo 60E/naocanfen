@@ -2756,7 +2756,7 @@ bool LoadBlockIndex()
         pchMessageStart[1] = 0xc1;
         pchMessageStart[2] = 0xb7;
         pchMessageStart[3] = 0xdc;
-        hashGenesisBlock = uint256("0x000000b8e2a174f9f1f8c28397ccbda39aa4ed1c8ecc82f9954498974c38bcc5");
+        hashGenesisBlock = uint256("0x000000002a1846cf26a738db6642ed243eedfd963f97bd806d0c13e020303999");
     }
 
     //
@@ -2821,8 +2821,16 @@ bool InitBlockIndex() {
         txNew.vout.resize(1);
         txNew.vin[0].scriptSig = CScript() << 486604799 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
         txNew.vout[0].nValue = 20 * 1000 * 1000 * COIN;
-        CPubKey pubkey(ParseHex("030965d67867dfe21f9303ed2369971cc1e0cee55bcf997700fdc2783d1d7f5bb6"));
-        txNew.vout[0].scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
+        if (fTestNet)
+        {
+            CPubKey pubkey(ParseHex("02d704a4ffd9750b329f3ff92e85df5e5db30bf0f16505d74f533594d9e5e312d6"));
+            txNew.vout[0].scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
+        }
+        else
+        {
+            CPubKey pubkey(ParseHex("030965d67867dfe21f9303ed2369971cc1e0cee55bcf997700fdc2783d1d7f5bb6"));
+            txNew.vout[0].scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
+        }
         
         CBlock block;
         block.vtx.push_back(txNew);
@@ -2832,8 +2840,8 @@ bool InitBlockIndex() {
         block.nBits    = 0x1D00FFFF;
         if (fTestNet)
         {
-            block.nTime    = 1392785966;
-            block.nNonce   = 54241496;
+            block.nTime    = 1394381560;
+            block.nNonce   = 560918009;
         }
         else
         {
@@ -2848,7 +2856,11 @@ bool InitBlockIndex() {
         printf("%s\n", hash.ToString().c_str());
         printf("%s\n", hashGenesisBlock.ToString().c_str());
         printf("%s\n", block.hashMerkleRoot.ToString().c_str());
-        assert(block.hashMerkleRoot == uint256("0xa05af0d519adf9b766bbcebaaf3d21837661ecc0f2896428cf682677101fecea"));
+        if (fTestNet)
+            assert(block.hashMerkleRoot == uint256("0xd628b1a0a2385517b08f6476812a12b83fa5720032514ad354e8bc255bc1f318"));
+        else
+            assert(block.hashMerkleRoot == uint256("0xa05af0d519adf9b766bbcebaaf3d21837661ecc0f2896428cf682677101fecea"));
+        
         block.print();
         assert(hash == hashGenesisBlock);
 
@@ -5306,8 +5318,16 @@ bool genGenesisBlockSHA256() {
     txNew.vout.resize(1);
     txNew.vin[0].scriptSig = CScript() << 486604799 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
     txNew.vout[0].nValue = 20 * 1000 * 1000 * COIN;
-    CPubKey pubkey(ParseHex("030965d67867dfe21f9303ed2369971cc1e0cee55bcf997700fdc2783d1d7f5bb6"));
-    txNew.vout[0].scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
+    if (fTestNet)
+    {
+        CPubKey pubkey(ParseHex("02d704a4ffd9750b329f3ff92e85df5e5db30bf0f16505d74f533594d9e5e312d6"));
+        txNew.vout[0].scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
+    }
+    else
+    {
+        CPubKey pubkey(ParseHex("030965d67867dfe21f9303ed2369971cc1e0cee55bcf997700fdc2783d1d7f5bb6"));
+        txNew.vout[0].scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
+    }
 
     CBlock block;
     block.vtx.push_back(txNew);
