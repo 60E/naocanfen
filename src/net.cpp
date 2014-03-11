@@ -1254,6 +1254,11 @@ static unsigned int pnSeed[] =
     0x5f0bc136, 0xd282ff36,
 };
 
+static unsigned int pnSeed_testnet[] =
+{
+    0x5f0bc136, 0xd282ff36,
+};
+
 void DumpAddresses()
 {
     int64 nStart = GetTimeMillis();
@@ -1316,10 +1321,16 @@ void ThreadOpenConnections()
         boost::this_thread::interruption_point();
 
         // Add seed nodes if IRC isn't working
-        if (addrman.size()==0 && (GetTime() - nStart > 60) && !fTestNet)
+        if (addrman.size()==0 && (GetTime() - nStart > 60) )
         {
+            int seed_count = 0;
+            if ( !fTestNet )
+                seed_count = ARRAYLEN(pnSeed);
+            else
+                seed_count = ARRAYLEN(pnSeed_testnet);
+            
             std::vector<CAddress> vAdd;
-            for (unsigned int i = 0; i < ARRAYLEN(pnSeed); i++)
+            for (unsigned int i = 0; i < seed_count; i++)
             {
                 // It'll only connect to one or two seed nodes because once it connects,
                 // it'll get a pile of addresses with newer timestamps.
@@ -1327,7 +1338,11 @@ void ThreadOpenConnections()
                 // weeks ago.
                 const int64 nOneWeek = 7*24*60*60;
                 struct in_addr ip;
-                memcpy(&ip, &pnSeed[i], sizeof(ip));
+                if ( !fTestNet )
+                    memcpy(&ip, &pnSeed[i], sizeof(ip));
+                else
+                    memcpy(&ip, &pnSeed_testnet[i], sizeof(ip));
+
                 CAddress addr(CService(ip, GetDefaultPort()));
                 addr.nTime = GetTime()-GetRand(nOneWeek)-nOneWeek;
                 vAdd.push_back(addr);
