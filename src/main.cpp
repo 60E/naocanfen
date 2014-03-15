@@ -31,7 +31,7 @@ CTxMemPool mempool;
 unsigned int nTransactionsUpdated = 0;
 
 map<uint256, CBlockIndex*> mapBlockIndex;
-uint256 hashGenesisBlock("0000000057b217393c2f54750034d2262225096a69df85c7866b4d3c5b12310b");
+uint256 hashGenesisBlock("000000002f557a52416c69deec7fb6038fc8587c870fa2af17489ba296b7bcff");
 
 static CBigNum bnProofOfWorkLimits[2] = { CBigNum(~uint256(0) >> 32), CBigNum(~uint256(0) >> 20) };
 
@@ -2769,10 +2769,7 @@ bool LoadBlockIndex()
 }
 
 
-bool genGenesisBlock() ;
-bool genGenesisBlockSHA256() ;
 bool InitBlockIndex() {
-    //return genGenesisBlockSHA256();
     // Check whether we're already initialized
     if (pindexGenesisBlock != NULL)
         return true;
@@ -2784,38 +2781,15 @@ bool InitBlockIndex() {
 
     // Only add the genesis block if not reindexing (in which case we reuse the one already on disk)
     if (!fReindex) {
-        // Genesis Block:
-        // CBlock(hash=12a765e31ffd4059bada, PoW=0000050c34a64b415b6b, ver=1, hashPrevBlock=00000000000000000000, hashMerkleRoot=97ddfbbae6, nTime=1317972665, nBits=1e0ffff0, nNonce=2084524493, vtx=1)
-        //   CTransaction(hash=97ddfbbae6, ver=1, vin.size=1, vout.size=1, nLockTime=0)
-        //     CTxIn(COutPoint(0000000000, -1), coinbase 04ffff001d0104404e592054696d65732030352f4f63742f32303131205374657665204a6f62732c204170706c65e280997320566973696f6e6172792c2044696573206174203536)
-        //     CTxOut(nValue=50.00000000, scriptPubKey=040184710fa689ad5023690c80f3a4)
-        //   vMerkleTree: 97ddfbbae6
-
         // Genesis block
 
-#if 0 // ltc        
-        //const char* pszTimestamp = "NY Times 05/Oct/2011 Steve Jobs, Apple’s Visionary, Dies at 56";
-        const char* pszTimestamp = "Hybrid coin project start!";
-        CTransaction txNew;
-        txNew.vin.resize(1);
-        txNew.vout.resize(1);
-        txNew.vin[0].scriptSig = CScript() << 486604799 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-        txNew.vout[0].nValue = 50 * COIN;
-        txNew.vout[0].scriptPubKey = CScript() << ParseHex("040184710fa689ad5023690c80f3a49c8f13f8d45b8c857fbcbc8bc4a8e4d3eb4b10f4d4604fa08dce601aaf0f470216fe1b51850b4acf21b179c45070ac7b03a9") << OP_CHECKSIG;
-        CBlock block;
-        block.vtx.push_back(txNew);
-        block.hashPrevBlock = 0;
-        block.hashMerkleRoot = block.BuildMerkleTree();
-        block.nVersion = 1;
-        //block.nTime    = 1317972665;
-        //block.nBits    = 0x1e0ffff0;
-        //block.nNonce   = 2084524493;
-        block.nTime    = 1390399360;
-        block.nBits    = 0x1F00FFFF;
-        block.nNonce   = 17290;
-#else
         //const char* pszTimestamp = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";
-        const char* pszTimestamp = "B1C4E1EA1B3C05944851D026DC5985EC7EB807547334E5E944AA3D4E8191D486";
+        const char* pszTimestamp;
+        if (fTestNet)
+            pszTimestamp = "B1C4E1EA1B3C05944851D026DC5985EC7EB807547334E5E944AA3D4E8191D486";
+        else
+            pszTimestamp = "Mar 14, 2014: Soaring Prices Fuel Frustrations in Argentina.";
+
         CTransaction txNew;
         txNew.vin.resize(1);
         txNew.vout.resize(1);
@@ -2828,7 +2802,7 @@ bool InitBlockIndex() {
         }
         else
         {
-            CPubKey pubkey(ParseHex("030965d67867dfe21f9303ed2369971cc1e0cee55bcf997700fdc2783d1d7f5bb6"));
+            CPubKey pubkey(ParseHex("023b29afb7aab69e413e570867daa0439547c2b520c9fd0dc208b4055670267a0c"));
             txNew.vout[0].scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
         }
         
@@ -2845,11 +2819,9 @@ bool InitBlockIndex() {
         }
         else
         {
-            block.nTime    = 1394376646;
-            block.nNonce   = 856133085;
+            block.nTime    = 1394851180;
+            block.nNonce   = 1380309726;
         }
-        // test hash 000000b8e2a174f9f1f8c28397ccbda39aa4ed1c8ecc82f9954498974c38bcc5
-#endif
 
         //// debug print
         uint256 hash = block.GetHash();
@@ -2859,7 +2831,7 @@ bool InitBlockIndex() {
         if (fTestNet)
             assert(block.hashMerkleRoot == uint256("0xd628b1a0a2385517b08f6476812a12b83fa5720032514ad354e8bc255bc1f318"));
         else
-            assert(block.hashMerkleRoot == uint256("0xa05af0d519adf9b766bbcebaaf3d21837661ecc0f2896428cf682677101fecea"));
+            assert(block.hashMerkleRoot == uint256("0x171a3acbf6e5ff681739e3387dc2bcf356ff114792f5b08548edc0b3a96a2781"));
         
         block.print();
         assert(hash == hashGenesisBlock);
@@ -5310,70 +5282,6 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
 #endif
 }
 
-bool genGenesisBlockSHA256() {
-    printf("genGenesisBlock\n");
-    const char* pszTimestamp = "B1C4E1EA1B3C05944851D026DC5985EC7EB807547334E5E944AA3D4E8191D486";
-    CTransaction txNew;
-    txNew.vin.resize(1);
-    txNew.vout.resize(1);
-    txNew.vin[0].scriptSig = CScript() << 486604799 << CBigNum(4) << vector<unsigned char>((const unsigned char*)pszTimestamp, (const unsigned char*)pszTimestamp + strlen(pszTimestamp));
-    txNew.vout[0].nValue = 20 * 1000 * 1000 * COIN;
-    if (fTestNet)
-    {
-        CPubKey pubkey(ParseHex("02d704a4ffd9750b329f3ff92e85df5e5db30bf0f16505d74f533594d9e5e312d6"));
-        txNew.vout[0].scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
-    }
-    else
-    {
-        CPubKey pubkey(ParseHex("030965d67867dfe21f9303ed2369971cc1e0cee55bcf997700fdc2783d1d7f5bb6"));
-        txNew.vout[0].scriptPubKey = CScript() << pubkey << OP_CHECKSIG;
-    }
-
-    CBlock block;
-    block.vtx.push_back(txNew);
-    block.hashPrevBlock = 0;
-    block.hashMerkleRoot = block.BuildMerkleTree();
-    block.nVersion = 2;
-    block.nTime    = GetAdjustedTime();
-    block.nBits    = bnProofOfWorkLimits[0].GetCompact();
-    block.nNonce   = 0;
-
-    printf("header %s\n", HexStr(BEGIN(block), BEGIN(block) + 80).c_str());
-    printf("%d\n", block.nTime);
-    printf("0x%02X\n", block.nBits);
-    printf("%s\n", block.hashMerkleRoot.ToString().c_str());
-
-    uint256 hashTarget = CBigNum().SetCompact(block.nBits).getuint256();
-
-    loop
-    {
-        block.nNonce += 1;
-        uint256 hash = block.GetHash();
-        if (hash <= hashTarget)
-        {
-            // Found a solution
-            break;
-        }
-
-        if (block.nNonce == 0xFFFFFFFF)
-        {
-            block.nNonce = 0;
-            block.nTime    = GetAdjustedTime();
-        }
-    }
-
-    uint256 hash1 = block.GetHash();
-
-    printf("%d\n", block.nTime);
-    printf("0x%02X\n", block.nBits);
-    printf("%d\n", block.nNonce);
-    printf("%s\n", hash1.ToString().c_str());
-    printf("%s\n", hashGenesisBlock.ToString().c_str());
-    printf("%s\n", block.hashMerkleRoot.ToString().c_str());
-    block.print();
-
-    return false;
-}
 // Amount compression:
 // * If the amount is 0, output 0
 // * first, divide the amount (in base units) by the largest power of 10 possible; call the exponent e (e is max 9)
