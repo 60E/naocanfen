@@ -65,7 +65,7 @@ Value GetNetworkHashPS(int lookup, int height, int algo) {
         return 0;
 
     if ( algo == CBlockHeader::BLOCK_ALGO_SCRYPT )
-        workDiff >>= 12;
+        workDiff >>= 15;
 
     //uint256 workDiff = pb->nChainWork - pb0->nChainWork;
     int64 timeDiff = maxTime - minTime;
