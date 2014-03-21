@@ -70,7 +70,9 @@ public:
         SendToOther,
         RecvWithAddress,
         RecvFromOther,
-        SendToSelf
+        SendToSelf, 
+        MultiSigRecv,
+        MultiSigSpent,
     };
 
     /** Number of confirmation needed for transaction */

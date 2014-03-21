@@ -1419,6 +1419,40 @@ bool IsMine(const CKeyStore &keystore, const CScript& scriptPubKey)
     return false;
 }
 
+bool IsMineShare(const CKeyStore& keystore, const CScript& scriptPubKey)
+{
+    vector<valtype> vSolutions;
+    txnouttype whichType;
+    if (!Solver(scriptPubKey, whichType, vSolutions))
+        return false;
+
+    CKeyID keyID;
+    switch (whichType)
+    {
+    case TX_NONSTANDARD:
+    case TX_PUBKEY:
+    case TX_PUBKEYHASH:
+        return false;
+    case TX_SCRIPTHASH:
+    {
+        CScript subscript;
+        if (!keystore.GetCScript(CScriptID(uint160(vSolutions[0])), subscript))
+            return false;
+
+        return IsMineShare(keystore, subscript);
+    }
+    case TX_MULTISIG:
+    {
+        vector<valtype> keys(vSolutions.begin()+1, vSolutions.begin()+vSolutions.size()-1);
+        int nkeys = HaveKeys(keys, keystore) ;
+        return nkeys > 0 && nkeys < keys.size();
+    }
+    default:
+        break;
+    }
+    return false;
+}
+
 bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
 {
     vector<valtype> vSolutions;

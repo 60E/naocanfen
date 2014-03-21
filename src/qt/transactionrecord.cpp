@@ -73,8 +73,16 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
             fAllFromMe = fAllFromMe && wallet->IsMine(txin);
 
         bool fAllToMe = true;
-        BOOST_FOREACH(const CTxOut& txout, wtx.vout)
+        int64 nShareCredit = 0;
+        CTxDestination shareAddress;
+        
+        BOOST_FOREACH(const CTxOut& txout, wtx.vout){
             fAllToMe = fAllToMe && wallet->IsMine(txout);
+            if ( wallet->IsMineShare(txout) ){
+                ExtractDestination(txout.scriptPubKey, shareAddress);
+                nShareCredit += txout.nValue;
+            }
+        }
 
         if (fAllFromMe && fAllToMe)
         {
@@ -129,6 +137,15 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 
                 parts.append(sub);
             }
+        }
+        else if ( nShareCredit > 0 )
+        {
+            TransactionRecord sub(hash, nTime);
+            sub.idx = parts.size();
+            sub.type = TransactionRecord::MultiSigRecv;
+            sub.address = CBitcoinAddress(shareAddress).ToString();
+            sub.credit = nShareCredit;
+            parts.append(sub);
         }
         else
         {

@@ -510,7 +510,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const uint256 &hash, const CTransaction& 
         LOCK(cs_wallet);
         bool fExisted = mapWallet.count(hash);
         if (fExisted && !fUpdate) return false;
-        if (fExisted || IsMine(tx) || IsFromMe(tx))
+        if (fExisted || IsMine(tx) || IsFromMe(tx) || IsMineShare(tx))
         {
             CWalletTx wtx(this,tx);
             // Get merkle branch if transaction was found in a block
@@ -1809,6 +1809,76 @@ set< set<CTxDestination> > CWallet::GetAddressGroupings()
 
     return ret;
 }
+
+/* 
+ *  for shared wallet
+ */
+bool CWallet::IsMineShare(const CTxIn& txin) const
+{
+    {
+        LOCK(cs_wallet);
+        map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
+        if (mi != mapWallet.end())
+        {
+            const CWalletTx& prev = (*mi).second;
+            if (txin.prevout.n < prev.vout.size())
+                if (IsMineShare(prev.vout[txin.prevout.n]))
+                    return true;
+        }
+    }
+    return false;
+}
+
+bool CWallet::IsMineShare(const CTxOut& txout) const
+{
+    return ::IsMineShare(*this, txout.scriptPubKey);
+}
+
+bool CWallet::IsMineShare(const CTransaction& tx) const
+{
+    BOOST_FOREACH(const CTxOut& txout, tx.vout)
+        if (IsMineShare(txout) && txout.nValue >= nMinimumInputValue)
+            return true;
+
+    return false;
+}
+
+int64 CWallet::GetSharedBalance() const
+{
+    int64 nTotal = 0;
+    {
+        LOCK(cs_wallet);
+        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        {
+            const CWalletTx* pcoin = &(*it).second;
+            if (pcoin->IsConfirmed())
+                nTotal += pcoin->GetSharedAvailableCredit();
+        }
+    }
+
+    return nTotal;
+}
+
+int64 CWallet::GetSharedUnconfirmedBalance() const
+{
+    int64 nTotal = 0;
+    {
+        LOCK(cs_wallet);
+        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        {
+            const CWalletTx* pcoin = &(*it).second;
+            if (!pcoin->IsFinal() || !pcoin->IsConfirmed())
+                nTotal += pcoin->GetSharedAvailableCredit();
+        }
+    }
+    return nTotal;
+}
+
+int64 CWallet::GetSharedImmatureBalance() const
+{
+    return 0;
+}
+
 
 bool CReserveKey::GetReservedKey(CPubKey& pubkey)
 {

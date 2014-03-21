@@ -66,6 +66,11 @@ public:
     qint64 getBalance(const CCoinControl *coinControl=NULL) const;
     qint64 getUnconfirmedBalance() const;
     qint64 getImmatureBalance() const;
+
+    qint64 getSharedBalance() const;
+    qint64 getSharedUnconfirmedBalance() const;
+    qint64 getSharedImmatureBalance() const;
+    
     int getNumTransactions() const;
     EncryptionStatus getEncryptionStatus() const;
 
@@ -140,6 +145,11 @@ private:
     qint64 cachedBalance;
     qint64 cachedUnconfirmedBalance;
     qint64 cachedImmatureBalance;
+
+    qint64 cachedSharedBalance;
+    qint64 cachedSharedUnconfirmedBalance;
+    qint64 cachedSharedImmatureBalance;
+    
     qint64 cachedNumTransactions;
     EncryptionStatus cachedEncryptionStatus;
     int cachedNumBlocks;
@@ -153,6 +163,7 @@ private:
 signals:
     // Signal that balance in wallet changed
     void balanceChanged(qint64 balance, qint64 unconfirmedBalance, qint64 immatureBalance);
+    void sharedBalanceChanged(qint64 shared_balance, qint64 shared_unconfirmedBalance, qint64 shared_immatureBalance);
 
     // Number of transactions in wallet changed
     void numTransactionsChanged(int count);

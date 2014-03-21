@@ -360,6 +360,10 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
         return tr("Payment to yourself");
     case TransactionRecord::Generated:
         return tr("Mined");
+    case TransactionRecord::MultiSigRecv:
+        return tr("MultiSig Received");
+    case TransactionRecord::MultiSigSpent:
+        return tr("MultiSig Spent");
     default:
         return QString();
     }
@@ -392,6 +396,8 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
     case TransactionRecord::RecvWithAddress:
     case TransactionRecord::SendToAddress:
     case TransactionRecord::Generated:
+    case TransactionRecord::MultiSigRecv:
+    case TransactionRecord::MultiSigSpent:
         return lookupAddress(wtx->address, tooltip);
     case TransactionRecord::SendToOther:
         return QString::fromStdString(wtx->address);
@@ -416,6 +422,9 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord *wtx) const
         } break;
     case TransactionRecord::SendToSelf:
         return COLOR_BAREADDRESS;
+    case TransactionRecord::MultiSigRecv:
+    case TransactionRecord::MultiSigSpent:
+        return COLOR_UNCONFIRMED;
     default:
         break;
     }

@@ -16,6 +16,7 @@ WalletModel::WalletModel(CWallet *wallet, OptionsModel *optionsModel, QObject *p
     QObject(parent), wallet(wallet), optionsModel(optionsModel), addressTableModel(0),
     transactionTableModel(0),
     cachedBalance(0), cachedUnconfirmedBalance(0), cachedImmatureBalance(0),
+    cachedSharedBalance(0), cachedSharedUnconfirmedBalance(0), cachedSharedImmatureBalance(0),
     cachedNumTransactions(0),
     cachedEncryptionStatus(Unencrypted),
     cachedNumBlocks(0)
@@ -62,6 +63,21 @@ qint64 WalletModel::getImmatureBalance() const
     return wallet->GetImmatureBalance();
 }
 
+qint64 WalletModel::getSharedBalance() const
+{
+    return wallet->GetSharedBalance();
+}
+
+qint64 WalletModel::getSharedUnconfirmedBalance() const
+{
+    return wallet->GetSharedUnconfirmedBalance();
+}
+
+qint64 WalletModel::getSharedImmatureBalance() const
+{
+    return wallet->GetSharedImmatureBalance();
+}
+
 int WalletModel::getNumTransactions() const
 {
     int numTransactions = 0;
@@ -104,6 +120,20 @@ void WalletModel::checkBalanceChanged()
         cachedUnconfirmedBalance = newUnconfirmedBalance;
         cachedImmatureBalance = newImmatureBalance;
         emit balanceChanged(newBalance, newUnconfirmedBalance, newImmatureBalance);
+    }
+    
+    qint64 newSharedBalance = getSharedBalance();
+    qint64 newSharedUnconfirmedBalance = getSharedUnconfirmedBalance();
+    qint64 newSharedImmatureBalance = getSharedImmatureBalance();
+
+    if(cachedSharedBalance != newSharedBalance 
+        || cachedSharedUnconfirmedBalance != newSharedUnconfirmedBalance 
+        || cachedSharedImmatureBalance != newSharedImmatureBalance)
+    {
+        cachedSharedBalance = newSharedBalance;
+        cachedSharedUnconfirmedBalance = newSharedUnconfirmedBalance;
+        cachedSharedImmatureBalance = newSharedImmatureBalance;
+        emit sharedBalanceChanged(newSharedBalance, newSharedUnconfirmedBalance, newSharedImmatureBalance);
     }
 }
 
