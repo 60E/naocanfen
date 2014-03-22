@@ -83,6 +83,16 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 nShareCredit += txout.nValue;
             }
         }
+        
+        if ( nShareCredit > 0 )
+        {
+            TransactionRecord sub(hash, nTime);
+            sub.idx = parts.size();
+            sub.type = TransactionRecord::MultiSigRecv;
+            sub.address = CBitcoinAddress(shareAddress).ToString();
+            sub.credit = nShareCredit;
+            parts.append(sub);
+        }
 
         if (fAllFromMe && fAllToMe)
         {
@@ -138,16 +148,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
                 parts.append(sub);
             }
         }
-        else if ( nShareCredit > 0 )
-        {
-            TransactionRecord sub(hash, nTime);
-            sub.idx = parts.size();
-            sub.type = TransactionRecord::MultiSigRecv;
-            sub.address = CBitcoinAddress(shareAddress).ToString();
-            sub.credit = nShareCredit;
-            parts.append(sub);
-        }
-        else
+        else if ( nShareCredit == 0 )
         {
             //
             // Mixed debit transaction, can't break down payees
