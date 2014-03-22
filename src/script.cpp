@@ -1380,6 +1380,30 @@ bool IsMine(const CKeyStore &keystore, const CTxDestination &dest)
     return boost::apply_visitor(CKeyStoreIsMineVisitor(&keystore), dest);
 }
 
+
+class CKeyStoreIsMineShareVisitor : public boost::static_visitor<bool>
+{
+private:
+    const CKeyStore *keystore;
+public:
+    CKeyStoreIsMineShareVisitor(const CKeyStore *keystoreIn) : keystore(keystoreIn) { }
+    bool operator()(const CNoDestination &dest) const { return false; }
+    bool operator()(const CKeyID &keyID) const { return false; }
+    bool operator()(const CScriptID &scriptID) const { 
+        CScript scriptPubKey;
+        bool haveCScript = keystore->GetCScript(scriptID, scriptPubKey);
+        if ( !haveCScript )
+            return false;
+
+        return IsMineShare(*keystore, scriptPubKey);
+    }
+};
+
+bool IsMineShare(const CKeyStore& keystore, const CTxDestination &dest)
+{
+    return boost::apply_visitor(CKeyStoreIsMineShareVisitor(&keystore), dest);
+}
+
 bool IsMine(const CKeyStore &keystore, const CScript& scriptPubKey)
 {
     vector<valtype> vSolutions;

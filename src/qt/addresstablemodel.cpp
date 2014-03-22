@@ -64,7 +64,12 @@ public:
                 const CBitcoinAddress& address = item.first;
                 const std::string& strName = item.second;
                 bool fMine = IsMine(*wallet, address.Get());
-                cachedAddressTable.append(AddressTableEntry(fMine ? AddressTableEntry::Receiving : AddressTableEntry::Sending,
+                bool fMineShare = IsMineShare(*wallet, address.Get());
+                AddressTableEntry::Type type = fMine ? AddressTableEntry::Receiving : AddressTableEntry::Sending;
+                if ( fMineShare )
+                    type = AddressTableEntry::Sending;
+
+                cachedAddressTable.append(AddressTableEntry(type,
                                   QString::fromStdString(strName),
                                   QString::fromStdString(address.ToString())));
             }

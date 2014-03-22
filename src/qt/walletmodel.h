@@ -131,6 +131,7 @@ public:
     void unlockCoin(COutPoint& output);
     void listLockedCoins(std::vector<COutPoint>& vOutpts);
 
+    CWallet *getWallet(){return wallet;}
 private:
     CWallet *wallet;
 
