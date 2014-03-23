@@ -356,11 +356,6 @@ void MultiSigDialog::updateAddressList()
     int n = ui->comboBoxAddrList->count();
     QString num_str = QString::number(n);
     ui->labelAddressesNum->setText(num_str);
-
-    //if ( currentIndex < 0 )
-    //{
-    //    ui->comboBoxAddrList->setCurrentIndex(0);
-    //}
 }
 
 void MultiSigDialog::updateAddressDetail()
@@ -386,13 +381,36 @@ void MultiSigDialog::updateAddressDetail()
     {
         ui->labelAvailableCoins->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), nAmount));
     }
+
+    CScript subscript;
+    CScriptID scriptID;
+    address.GetScriptID(scriptID);
+    pwalletMain->GetCScript(scriptID, subscript);
+    std::vector<CTxDestination> addresses;
+    txnouttype whichType;
+    int nRequired;
+    ExtractDestinations(subscript, whichType, addresses, nRequired);
+    
+    int i = 0;
+    BOOST_FOREACH(const CTxDestination& addr, addresses){
+        if ( i == 0 )
+            ui->labelRequireAddr0->setText(QString::fromStdString(CBitcoinAddress(addr).ToString()));
+        else if ( i == 1 )
+            ui->labelRequireAddr1->setText(QString::fromStdString(CBitcoinAddress(addr).ToString()));
+        else if ( i == 2 )
+            ui->labelRequireAddr2->setText(QString::fromStdString(CBitcoinAddress(addr).ToString()));
+        else
+            break;
+        
+        i += 1;
+    }
+    
+    ui->labelRequire->setText(QString("Require ") + QString::number(nRequired) + QString(" of ") + QString::number(i) + QString(" signatures ") );
 }
 
 void MultiSigDialog::handleAddrSelectionChanged(int idx)
 {
     //QVariant v = ui->comboBoxAddrList->itemData(idx);
-    QString s = ui->comboBoxAddrList->currentText();
-    ui->labelRequire->setText(s);
 
     if ( currentIndex != idx )
     {
