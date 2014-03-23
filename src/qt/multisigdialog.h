@@ -12,6 +12,7 @@ class CWallet;
 class WalletModel;
 class SendCoinsEntry;
 class SendCoinsRecipient;
+class CCoinControl;
 
 QT_BEGIN_NAMESPACE
 class QUrl;
@@ -36,10 +37,13 @@ public:
     void pasteEntry(const SendCoinsRecipient &rv);
     bool handleURI(const QString &uri);
 
+    static CCoinControl *coinControl;
+
 public slots:
     void clear();
     void reject();
     void accept();
+    void exportDraft();
     SendCoinsEntry *addEntry();
     void updateRemoveEnabled();
     void setSharedBalance(qint64 balance, qint64 unconfirmedBalance, qint64 immatureBalance);

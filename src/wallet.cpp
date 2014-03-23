@@ -1810,6 +1810,110 @@ set< set<CTxDestination> > CWallet::GetAddressGroupings()
     return ret;
 }
 
+bool CWallet::SelectSharedCoins(int64 nTargetValue, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, int64& nValueRet, const CCoinControl* coinControl) const
+{
+    vector<COutput> vCoins;
+    AvailableSharedCoins(vCoins, true, coinControl);
+    
+    // coin control -> return all selected outputs (we want all selected to go into the transaction for sure)
+    if (coinControl && coinControl->HasSelected())
+    {
+        BOOST_FOREACH(const COutput& out, vCoins)
+        {
+            nValueRet += out.tx->vout[out.i].nValue;
+            setCoinsRet.insert(make_pair(out.tx, out.i));
+        }
+        return (nValueRet >= nTargetValue);
+    }
+
+    return (SelectCoinsMinConf(nTargetValue, 1, 6, vCoins, setCoinsRet, nValueRet) ||
+            SelectCoinsMinConf(nTargetValue, 1, 1, vCoins, setCoinsRet, nValueRet) ||
+            SelectCoinsMinConf(nTargetValue, 0, 1, vCoins, setCoinsRet, nValueRet));
+}
+
+bool CWallet::CreateRawTransaction(const std::vector<std::pair<CScript, int64> >& vecSend,
+                       CTransaction& txNew, int64& nFeeRet, std::string& strFailReason, const CCoinControl *coinControl)
+{
+    int64 nValue = 0;
+    BOOST_FOREACH (const PAIRTYPE(CScript, int64)& s, vecSend)
+    {
+        if (nValue < 0)
+        {
+            strFailReason = _("Transaction amounts must be positive");
+            return false;
+        }
+        nValue += s.second;
+    }
+    if (vecSend.empty() || nValue < 0)
+    {
+        strFailReason = _("Transaction amounts must be positive");
+        return false;
+    }
+
+    int64 nTotalValue = nValue;// + nFeeRet;
+    CTransaction rawTx;
+
+    // vouts to the payees
+    BOOST_FOREACH (const PAIRTYPE(CScript, int64)& s, vecSend)
+    {
+        CTxOut txout(s.second, s.first);
+        if (txout.IsDust())
+        {
+            strFailReason = _("Transaction amount too small");
+            return false;
+        }
+        rawTx.vout.push_back(txout);
+    }
+
+    // Choose coins to use
+    set<pair<const CWalletTx*,unsigned int> > setCoins;
+    int64 nValueIn = 0;
+    if (!SelectSharedCoins(nTotalValue, setCoins, nValueIn, coinControl))
+    {
+        strFailReason = _("Insufficient funds");
+        return false;
+    }
+
+    int64 nChange = nValueIn - nTotalValue;
+    if (nChange > 0)
+    {
+        CScript scriptChange;
+        
+        // coin control: send change to custom address
+        if (coinControl && !boost::get<CNoDestination>(&coinControl->destChange))
+            scriptChange.SetDestination(coinControl->destChange);
+        else
+            return false;
+
+        CTxOut newTxOut(nChange, scriptChange);
+
+        if (newTxOut.IsDust())
+        {
+            nFeeRet += nChange;
+        }
+        else
+        {
+            vector<CTxOut>::iterator position = rawTx.vout.begin()+GetRandInt(rawTx.vout.size()+1);
+            rawTx.vout.insert(position, newTxOut);
+        }
+    }
+
+    // Fill vin
+    BOOST_FOREACH(const PAIRTYPE(const CWalletTx*,unsigned int)& coin, setCoins)
+        rawTx.vin.push_back(CTxIn(coin.first->GetHash(),coin.second));
+    
+    // Limit size
+    unsigned int nBytes = ::GetSerializeSize(rawTx, SER_NETWORK, PROTOCOL_VERSION);
+    if (nBytes >= MAX_STANDARD_TX_SIZE)
+    {
+        strFailReason = _("Transaction too large");
+        return false;
+    }
+
+    txNew = rawTx;
+    return true;
+}
+
 /* 
  *  for shared wallet
  */
@@ -1895,6 +1999,34 @@ int64 CWallet::GetShareDebit(const CTxIn &txin) const
     return 0;
 }
 
+void CWallet::AvailableSharedCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl) const
+{
+    vCoins.clear();
+
+    {
+        LOCK(cs_wallet);
+        for (map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
+        {
+            const CWalletTx* pcoin = &(*it).second;
+
+            if (!pcoin->IsFinal())
+                continue;
+
+            if (fOnlyConfirmed && !pcoin->IsConfirmed())
+                continue;
+
+            if (pcoin->IsCoinBase() && pcoin->GetBlocksToMaturity() > 0)
+                continue;
+
+            for (unsigned int i = 0; i < pcoin->vout.size(); i++) {
+                if (!(pcoin->IsSpent(i)) && IsMyShare(pcoin->vout[i]) &&
+                    !IsLockedCoin((*it).first, i) && pcoin->vout[i].nValue >= nMinimumInputValue &&
+                    (!coinControl || !coinControl->HasSelected() || coinControl->IsSelected((*it).first, i))) 
+                        vCoins.push_back(COutput(pcoin, i, pcoin->GetDepthInMainChain()));
+            }
+        }
+    }
+}
 
 
 bool CReserveKey::GetReservedKey(CPubKey& pubkey)

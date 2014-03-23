@@ -11,6 +11,7 @@ class OptionsModel;
 class AddressTableModel;
 class TransactionTableModel;
 class CWallet;
+class CTransaction;
 class CKeyID;
 class CPubKey;
 class COutput;
@@ -67,7 +68,7 @@ public:
     qint64 getUnconfirmedBalance() const;
     qint64 getImmatureBalance() const;
 
-    qint64 getSharedBalance() const;
+    qint64 getSharedBalance(const CCoinControl *coinControl=NULL) const;
     qint64 getSharedUnconfirmedBalance() const;
     qint64 getSharedImmatureBalance() const;
     
@@ -91,6 +92,7 @@ public:
 
     // Send coins to a list of recipients
     SendCoinsReturn sendCoins(const QList<SendCoinsRecipient> &recipients, const CCoinControl *coinControl=NULL);
+    SendCoinsReturn createRawTransaction(const QList<SendCoinsRecipient> &recipients, CTransaction& txNew, const CCoinControl *coinControl, bool isMultiSig);
 
     // Wallet encryption
     bool setWalletEncrypted(bool encrypted, const SecureString &passphrase);

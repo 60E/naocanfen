@@ -314,6 +314,8 @@ public:
      */
     boost::signals2::signal<void (CWallet *wallet, const uint256 &hashTx, ChangeType status)> NotifyTransactionChanged;
 
+    bool CreateRawTransaction(const std::vector<std::pair<CScript, int64> >& vecSend,
+                           CTransaction& txNew, int64& nFeeRet, std::string& strFailReason, const CCoinControl *coinControl=NULL);
 
     /* 
      *  for shared wallet
@@ -347,6 +349,8 @@ public:
         return nDebit;
     }
     int64 GetShareDebit(const CTxIn& txin) const;
+    void AvailableSharedCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl=NULL) const;
+    bool SelectSharedCoins(int64 nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, int64& nValueRet, const CCoinControl* coinControl=NULL) const;
 };
 
 /** A key allocated from the key pool. */
