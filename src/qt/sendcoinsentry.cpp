@@ -171,6 +171,16 @@ void SendCoinsEntry::setFocus()
     ui->payTo->setFocus();
 }
 
+void SendCoinsEntry::setFieldEnable(bool enable)
+{
+    ui->payTo->setEnabled(enable);
+    ui->addAsLabel->setEnabled(enable);
+    ui->payAmount->setEnabled(enable);
+    ui->addressBookButton->setEnabled(enable);
+    ui->pasteButton->setEnabled(enable);
+    ui->deleteButton->setEnabled(enable);
+}
+
 void SendCoinsEntry::updateDisplayUnit()
 {
     if(model && model->getOptionsModel())

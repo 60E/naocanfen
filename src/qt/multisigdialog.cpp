@@ -20,6 +20,7 @@
 #include <QTextStream>
 
 CCoinControl* MultiSigDialog::coinControl = new CCoinControl();
+CTransaction* MultiSigDialog::rawTx = new CTransaction();
 
 MultiSigDialog::MultiSigDialog(QWidget *parent) :
     QDialog(parent),
@@ -44,6 +45,8 @@ MultiSigDialog::MultiSigDialog(QWidget *parent) :
     fNewRecipientAllowed = true;
 
     currentIndex = -1;
+    isTxCreate = false;
+    isComplete = false;
     connect(ui->comboBoxAddrList, SIGNAL(currentIndexChanged(int)), this, SLOT(handleAddrSelectionChanged(int)));
 }
 
@@ -73,20 +76,7 @@ MultiSigDialog::~MultiSigDialog()
     delete ui;
 }
 
-bool writeHex(const QString &filename, const QString& hex)
-{
-    QFile file(filename);
-    if(!file.open(QIODevice::WriteOnly | QIODevice::Text))
-        return false;
-    
-    QTextStream out(&file);
-    out << hex;
-    file.close();
-
-    return file.error() == QFile::NoError;
-}
-
-void MultiSigDialog::exportDraft()
+void MultiSigDialog::createRawTransaction()
 {
     QList<SendCoinsRecipient> recipients;
     bool valid = true;
@@ -147,8 +137,8 @@ void MultiSigDialog::exportDraft()
         return;
     }
 
-    CTransaction txNew;
-    WalletModel::SendCoinsReturn sendstatus = model->createRawTransaction(recipients, txNew, coinControl, true);
+    rawTx->SetNull();
+    WalletModel::SendCoinsReturn sendstatus = model->createRawTransaction(recipients, *rawTx, coinControl, true);
     switch(sendstatus.status)
     {
     case WalletModel::InvalidAddress:
@@ -191,137 +181,68 @@ void MultiSigDialog::exportDraft()
         break;
     case WalletModel::OK:
         //accept();
-        {
-            // CSV is currently the only supported format
-            QString filename = GUIUtil::getSaveFileName(
-                    this,
-                    tr("Save Fusioncoin Transaction"), QString(),
-                    tr("Fusioncoin transaction file (*.txhex)"));
-
-            if (filename.isNull()) return;
-
-            CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
-            ss << txNew;
-            QString hex = QString::fromStdString(HexStr(ss.begin(), ss.end()));
-
-            if(!writeHex(filename, hex))
-            {
-                QMessageBox::critical(this, tr("Error exporting"), tr("Could not write to file %1.").arg(filename),
-                                      QMessageBox::Abort, QMessageBox::Abort);
-            }
-        }
+        isTxCreate = true;
         break;
     }
     fNewRecipientAllowed = true;
 }
 
-void MultiSigDialog::on_sendButton_clicked()
+bool writeHex(const QString &filename, const QString& hex)
 {
-    QList<SendCoinsRecipient> recipients;
-    bool valid = true;
+    QFile file(filename);
+    if(!file.open(QIODevice::WriteOnly | QIODevice::Text))
+        return false;
+    
+    QTextStream out(&file);
+    out << hex;
+    file.close();
 
-    if(!model)
-        return;
+    return file.error() == QFile::NoError;
+}
 
-    for(int i = 0; i < ui->entries->count(); ++i)
+void MultiSigDialog::exportDraft()
+{
+    if ( !isTxCreate )
+        createRawTransaction();
+    
+    if ( isTxCreate )
     {
-        SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
-        if(entry)
+        QString filename = GUIUtil::getSaveFileName(
+                this,
+                tr("Save Fusioncoin Transaction"), QString(),
+                tr("Fusioncoin transaction file (*.txhex)"));
+
+        if (filename.isNull()) return;
+
+        CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+        ss << (*rawTx);
+        QString hex = QString::fromStdString(HexStr(ss.begin(), ss.end()));
+
+        if(!writeHex(filename, hex))
         {
-            if(entry->validate())
-            {
-                recipients.append(entry->getValue());
-            }
-            else
-            {
-                valid = false;
-            }
+            QMessageBox::critical(this, tr("Error exporting"), tr("Could not write to file %1.").arg(filename),
+                                  QMessageBox::Abort, QMessageBox::Abort);
         }
     }
+}
 
-    if(!valid || recipients.isEmpty())
+void MultiSigDialog::on_sendButton_clicked()
+{
+    if ( !isTxCreate )
+        createRawTransaction();
+
+    if ( isTxCreate )
     {
-        return;
+        for(int i = 0; i < ui->entries->count(); ++i)
+        {
+            SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+            if(entry)
+            {
+                entry->setFieldEnable(false);
+            }
+        }
+        ui->sendButton->setEnabled(false);
     }
-
-    // Format confirmation message
-    QStringList formatted;
-    foreach(const SendCoinsRecipient &rcp, recipients)
-    {
-#if QT_VERSION < 0x050000
-        formatted.append(tr("<b>%1</b> to %2 (%3)").arg(BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, rcp.amount), Qt::escape(rcp.label), rcp.address));
-#else
-        formatted.append(tr("<b>%1</b> to %2 (%3)").arg(BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, rcp.amount), rcp.label.toHtmlEscaped(), rcp.address));
-#endif
-    }
-
-    fNewRecipientAllowed = false;
-
-    QMessageBox::StandardButton retval = QMessageBox::question(this, tr("Confirm send coins"),
-                          tr("Are you sure you want to send %1?").arg(formatted.join(tr(" and "))),
-          QMessageBox::Yes|QMessageBox::Cancel,
-          QMessageBox::Cancel);
-
-    if(retval != QMessageBox::Yes)
-    {
-        fNewRecipientAllowed = true;
-        return;
-    }
-
-    WalletModel::UnlockContext ctx(model->requestUnlock());
-    if(!ctx.isValid())
-    {
-        // Unlock wallet was cancelled
-        fNewRecipientAllowed = true;
-        return;
-    }
-
-    WalletModel::SendCoinsReturn sendstatus = model->sendCoins(recipients);
-    switch(sendstatus.status)
-    {
-    case WalletModel::InvalidAddress:
-        QMessageBox::warning(this, tr("Send Coins"),
-            tr("The recipient address is not valid, please recheck."),
-            QMessageBox::Ok, QMessageBox::Ok);
-        break;
-    case WalletModel::InvalidAmount:
-        QMessageBox::warning(this, tr("Send Coins"),
-            tr("The amount to pay must be larger than 0."),
-            QMessageBox::Ok, QMessageBox::Ok);
-        break;
-    case WalletModel::AmountExceedsBalance:
-        QMessageBox::warning(this, tr("Send Coins"),
-            tr("The amount exceeds your balance."),
-            QMessageBox::Ok, QMessageBox::Ok);
-        break;
-    case WalletModel::AmountWithFeeExceedsBalance:
-        QMessageBox::warning(this, tr("Send Coins"),
-            tr("The total exceeds your balance when the %1 transaction fee is included.").
-            arg(BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, sendstatus.fee)),
-            QMessageBox::Ok, QMessageBox::Ok);
-        break;
-    case WalletModel::DuplicateAddress:
-        QMessageBox::warning(this, tr("Send Coins"),
-            tr("Duplicate address found, can only send to each address once per send operation."),
-            QMessageBox::Ok, QMessageBox::Ok);
-        break;
-    case WalletModel::TransactionCreationFailed:
-        QMessageBox::warning(this, tr("Send Coins"),
-            tr("Error: Transaction creation failed!"),
-            QMessageBox::Ok, QMessageBox::Ok);
-        break;
-    case WalletModel::TransactionCommitFailed:
-        QMessageBox::warning(this, tr("Send Coins"),
-            tr("Error: The transaction was rejected. This might happen if some of the coins in your wallet were already spent, such as if you used a copy of wallet.dat and coins were spent in the copy but not marked as spent here."),
-            QMessageBox::Ok, QMessageBox::Ok);
-        break;
-    case WalletModel::Aborted: // User aborted, nothing to do
-        break;
-    case WalletModel::OK:
-        accept();
-        break;
-    }
-    fNewRecipientAllowed = true;
 }
 
 void MultiSigDialog::clear()
@@ -336,6 +257,8 @@ void MultiSigDialog::clear()
     updateRemoveEnabled();
 
     ui->sendButton->setDefault(true);
+    isTxCreate = false;
+    ui->sendButton->setEnabled(true);
 }
 
 void MultiSigDialog::reject()

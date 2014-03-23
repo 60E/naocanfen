@@ -13,6 +13,7 @@ class WalletModel;
 class SendCoinsEntry;
 class SendCoinsRecipient;
 class CCoinControl;
+class CTransaction;
 
 QT_BEGIN_NAMESPACE
 class QUrl;
@@ -38,6 +39,7 @@ public:
     bool handleURI(const QString &uri);
 
     static CCoinControl *coinControl;
+    static CTransaction *rawTx;
 
 public slots:
     void clear();
@@ -57,6 +59,10 @@ private:
     void updateAddressList();
     void updateAddressDetail();
     void updateAddressBalance();
+
+    bool isTxCreate;
+    bool isComplete;
+    void createRawTransaction();
 
     int currentIndex;
 
