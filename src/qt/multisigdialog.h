@@ -52,6 +52,7 @@ private:
     bool fNewRecipientAllowed;
     void updateAddressList();
     void updateAddressDetail();
+    void updateAddressBalance();
 
     int currentIndex;
 

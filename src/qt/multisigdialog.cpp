@@ -55,7 +55,7 @@ void MultiSigDialog::setModel(WalletModel *model)
     }
     if(model && model->getOptionsModel())
     {
-        setSharedBalance(model->getBalance(), model->getUnconfirmedBalance(), model->getImmatureBalance());
+        setSharedBalance(model->getSharedBalance(), model->getSharedUnconfirmedBalance(), model->getSharedImmatureBalance());
         connect(model, SIGNAL(sharedBalanceChanged(qint64, qint64, qint64)), this, SLOT(setSharedBalance(qint64, qint64, qint64)));
         connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
     }
@@ -316,6 +316,7 @@ bool MultiSigDialog::handleURI(const QString &uri)
 
 void MultiSigDialog::setSharedBalance(qint64 balance, qint64 unconfirmedBalance, qint64 immatureBalance)
 {
+    //printf("setSharedBalance %s\n", BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), balance).toStdString().c_str());
     Q_UNUSED(unconfirmedBalance);
     Q_UNUSED(immatureBalance);
     if(!model || !model->getOptionsModel())
@@ -324,6 +325,7 @@ void MultiSigDialog::setSharedBalance(qint64 balance, qint64 unconfirmedBalance,
     int unit = model->getOptionsModel()->getDisplayUnit();
     ui->labelBalance->setText(BitcoinUnits::formatWithUnit(unit, balance));
     updateAddressList();
+    updateAddressBalance();
 }
 
 void MultiSigDialog::updateDisplayUnit()
@@ -331,7 +333,7 @@ void MultiSigDialog::updateDisplayUnit()
     if(model && model->getOptionsModel())
     {
         // Update labelBalance with the current balance and the current unit
-        ui->labelBalance->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), model->getBalance()));
+        ui->labelBalance->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), model->getSharedBalance()));
     }
 }
 
@@ -345,8 +347,8 @@ void MultiSigDialog::updateAddressList()
             const CBitcoinAddress& address = item.first;
             const std::string& strName = item.second;
             //bool fMine = IsMine(*wallet, address.Get());
-            bool fMineShare = IsMineShare(*wallet, address.Get());
-            if ( fMineShare )
+            bool fMyShare = IsMyShare(*wallet, address.Get());
+            if ( fMyShare )
             {
                 ui->comboBoxAddrList->addItem(QString::fromStdString(address.ToString()), QVariant(""));
             }
@@ -358,29 +360,54 @@ void MultiSigDialog::updateAddressList()
     ui->labelAddressesNum->setText(num_str);
 }
 
+void MultiSigDialog::updateAddressBalance()
+{
+    if ( currentIndex < 0 )
+        return;
+
+    QString s = ui->comboBoxAddrList->currentText();
+    CBitcoinAddress address(s.toStdString());
+    CScript scriptPubKey;
+    scriptPubKey.SetDestination(address.Get());
+
+    int64 nAmount = 0;
+    {
+        LOCK(pwalletMain->cs_wallet);
+        for (std::map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
+        {
+            const CWalletTx& wtx = (*it).second;
+            //if (wtx.IsCoinBase() || !wtx.IsFinal())
+                //continue;
+
+            //printf("updateAddressBalance wtx %s \n", wtx.GetHash().ToString().c_str());
+            for (unsigned int i = 0; i < wtx.vout.size(); i++)
+            {
+                const CTxOut* txout = &wtx.vout[i];
+                if ( scriptPubKey == txout->scriptPubKey && !wtx.IsSpent(i)
+                    ){
+                    //printf("updateAddressBalance GetDepthInMainChain %d\n", wtx.GetDepthInMainChain());
+                    //printf("updateAddressBalance nValue %s\n", BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), txout.nValue).toStdString().c_str());
+                    //if (wtx.GetDepthInMainChain() > 0)
+                    //if (wtx.IsConfirmed())
+                    nAmount += txout->nValue;
+                }
+            }
+        }
+    }
+
+    //printf("updateAddressBalance nAmount %s\n", BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), nAmount).toStdString().c_str());
+    if(model && model->getOptionsModel())
+    {
+        ui->labelAvailableCoins->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), nAmount));
+    }
+}
+
 void MultiSigDialog::updateAddressDetail()
 {
     QString s = ui->comboBoxAddrList->currentText();
     CBitcoinAddress address(s.toStdString());
     CScript scriptPubKey;
     scriptPubKey.SetDestination(address.Get());
-    int64 nAmount = 0;
-    for (std::map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
-    {
-        const CWalletTx& wtx = (*it).second;
-        if (wtx.IsCoinBase() || !wtx.IsFinal())
-            continue;
-
-        BOOST_FOREACH(const CTxOut& txout, wtx.vout)
-            if (txout.scriptPubKey == scriptPubKey)
-                if (wtx.GetDepthInMainChain() >= 1)
-                    nAmount += txout.nValue;
-    }
-
-    if(model && model->getOptionsModel())
-    {
-        ui->labelAvailableCoins->setText(BitcoinUnits::formatWithUnit(model->getOptionsModel()->getDisplayUnit(), nAmount));
-    }
 
     CScript subscript;
     CScriptID scriptID;

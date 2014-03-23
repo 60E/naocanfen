@@ -73,6 +73,7 @@ public:
         SendToSelf, 
         MultiSigRecv,
         MultiSigSpent,
+        MultiSigSpentOther,
     };
 
     /** Number of confirmation needed for transaction */

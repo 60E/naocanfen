@@ -64,9 +64,9 @@ public:
                 const CBitcoinAddress& address = item.first;
                 const std::string& strName = item.second;
                 bool fMine = IsMine(*wallet, address.Get());
-                bool fMineShare = IsMineShare(*wallet, address.Get());
+                bool fMyShare = IsMyShare(*wallet, address.Get());
                 AddressTableEntry::Type type = fMine ? AddressTableEntry::Receiving : AddressTableEntry::Sending;
-                if ( fMineShare )
+                if ( fMyShare )
                     type = AddressTableEntry::Sending;
 
                 cachedAddressTable.append(AddressTableEntry(type,

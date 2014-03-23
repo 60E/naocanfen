@@ -350,7 +350,7 @@ void CWallet::WalletUpdateSpent(const CTransaction &tx)
                 CWalletTx& wtx = (*mi).second;
                 if (txin.prevout.n >= wtx.vout.size())
                     printf("WalletUpdateSpent: bad wtx %s\n", wtx.GetHash().ToString().c_str());
-                else if (!wtx.IsSpent(txin.prevout.n) && IsMine(wtx.vout[txin.prevout.n]))
+                else if (!wtx.IsSpent(txin.prevout.n) && (IsMine(wtx.vout[txin.prevout.n]) || IsMyShare(wtx.vout[txin.prevout.n]) ))
                 {
                     printf("WalletUpdateSpent found spent coin %sbc %s\n", FormatMoney(wtx.GetCredit()).c_str(), wtx.GetHash().ToString().c_str());
                     wtx.MarkSpent(txin.prevout.n);
@@ -510,7 +510,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const uint256 &hash, const CTransaction& 
         LOCK(cs_wallet);
         bool fExisted = mapWallet.count(hash);
         if (fExisted && !fUpdate) return false;
-        if (fExisted || IsMine(tx) || IsFromMe(tx) || IsMineShare(tx))
+        if (fExisted || IsMine(tx) || IsFromMe(tx) || IsMyShare(tx) || IsFromMyShare(tx))
         {
             CWalletTx wtx(this,tx);
             // Get merkle branch if transaction was found in a block
@@ -1813,7 +1813,7 @@ set< set<CTxDestination> > CWallet::GetAddressGroupings()
 /* 
  *  for shared wallet
  */
-bool CWallet::IsMineShare(const CTxIn& txin) const
+bool CWallet::IsMyShare(const CTxIn& txin) const
 {
     {
         LOCK(cs_wallet);
@@ -1822,22 +1822,22 @@ bool CWallet::IsMineShare(const CTxIn& txin) const
         {
             const CWalletTx& prev = (*mi).second;
             if (txin.prevout.n < prev.vout.size())
-                if (IsMineShare(prev.vout[txin.prevout.n]))
+                if (IsMyShare(prev.vout[txin.prevout.n]))
                     return true;
         }
     }
     return false;
 }
 
-bool CWallet::IsMineShare(const CTxOut& txout) const
+bool CWallet::IsMyShare(const CTxOut& txout) const
 {
-    return ::IsMineShare(*this, txout.scriptPubKey);
+    return ::IsMyShare(*this, txout.scriptPubKey);
 }
 
-bool CWallet::IsMineShare(const CTransaction& tx) const
+bool CWallet::IsMyShare(const CTransaction& tx) const
 {
     BOOST_FOREACH(const CTxOut& txout, tx.vout)
-        if (IsMineShare(txout) && txout.nValue >= nMinimumInputValue)
+        if (IsMyShare(txout) && txout.nValue >= nMinimumInputValue)
             return true;
 
     return false;
@@ -1878,6 +1878,23 @@ int64 CWallet::GetSharedImmatureBalance() const
 {
     return 0;
 }
+
+int64 CWallet::GetShareDebit(const CTxIn &txin) const
+{
+    {
+        LOCK(cs_wallet);
+        map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txin.prevout.hash);
+        if (mi != mapWallet.end())
+        {
+            const CWalletTx& prev = (*mi).second;
+            if (txin.prevout.n < prev.vout.size())
+                if (IsMyShare(prev.vout[txin.prevout.n]))
+                    return prev.vout[txin.prevout.n].nValue;
+        }
+    }
+    return 0;
+}
+
 
 
 bool CReserveKey::GetReservedKey(CPubKey& pubkey)

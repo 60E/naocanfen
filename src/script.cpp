@@ -1381,12 +1381,12 @@ bool IsMine(const CKeyStore &keystore, const CTxDestination &dest)
 }
 
 
-class CKeyStoreIsMineShareVisitor : public boost::static_visitor<bool>
+class CKeyStoreIsMyShareVisitor : public boost::static_visitor<bool>
 {
 private:
     const CKeyStore *keystore;
 public:
-    CKeyStoreIsMineShareVisitor(const CKeyStore *keystoreIn) : keystore(keystoreIn) { }
+    CKeyStoreIsMyShareVisitor(const CKeyStore *keystoreIn) : keystore(keystoreIn) { }
     bool operator()(const CNoDestination &dest) const { return false; }
     bool operator()(const CKeyID &keyID) const { return false; }
     bool operator()(const CScriptID &scriptID) const { 
@@ -1395,13 +1395,13 @@ public:
         if ( !haveCScript )
             return false;
 
-        return IsMineShare(*keystore, scriptPubKey);
+        return IsMyShare(*keystore, scriptPubKey);
     }
 };
 
-bool IsMineShare(const CKeyStore& keystore, const CTxDestination &dest)
+bool IsMyShare(const CKeyStore& keystore, const CTxDestination &dest)
 {
-    return boost::apply_visitor(CKeyStoreIsMineShareVisitor(&keystore), dest);
+    return boost::apply_visitor(CKeyStoreIsMyShareVisitor(&keystore), dest);
 }
 
 bool IsMine(const CKeyStore &keystore, const CScript& scriptPubKey)
@@ -1443,7 +1443,7 @@ bool IsMine(const CKeyStore &keystore, const CScript& scriptPubKey)
     return false;
 }
 
-bool IsMineShare(const CKeyStore& keystore, const CScript& scriptPubKey)
+bool IsMyShare(const CKeyStore& keystore, const CScript& scriptPubKey)
 {
     vector<valtype> vSolutions;
     txnouttype whichType;
@@ -1463,7 +1463,7 @@ bool IsMineShare(const CKeyStore& keystore, const CScript& scriptPubKey)
         if (!keystore.GetCScript(CScriptID(uint160(vSolutions[0])), subscript))
             return false;
 
-        return IsMineShare(keystore, subscript);
+        return IsMyShare(keystore, subscript);
     }
     case TX_MULTISIG:
     {

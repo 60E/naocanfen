@@ -363,6 +363,7 @@ QString TransactionTableModel::formatTxType(const TransactionRecord *wtx) const
     case TransactionRecord::MultiSigRecv:
         return tr("MultiSig Received");
     case TransactionRecord::MultiSigSpent:
+    case TransactionRecord::MultiSigSpentOther:
         return tr("MultiSig Spent");
     default:
         return QString();
@@ -377,9 +378,12 @@ QVariant TransactionTableModel::txAddressDecoration(const TransactionRecord *wtx
         return QIcon(":/icons/tx_mined");
     case TransactionRecord::RecvWithAddress:
     case TransactionRecord::RecvFromOther:
+    case TransactionRecord::MultiSigRecv:
         return QIcon(":/icons/tx_input");
     case TransactionRecord::SendToAddress:
     case TransactionRecord::SendToOther:
+    case TransactionRecord::MultiSigSpent:
+    case TransactionRecord::MultiSigSpentOther:
         return QIcon(":/icons/tx_output");
     default:
         return QIcon(":/icons/tx_inout");
@@ -399,6 +403,7 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
     case TransactionRecord::MultiSigRecv:
     case TransactionRecord::MultiSigSpent:
         return lookupAddress(wtx->address, tooltip);
+    case TransactionRecord::MultiSigSpentOther:
     case TransactionRecord::SendToOther:
         return QString::fromStdString(wtx->address);
     case TransactionRecord::SendToSelf:
@@ -424,6 +429,7 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord *wtx) const
         return COLOR_BAREADDRESS;
     case TransactionRecord::MultiSigRecv:
     case TransactionRecord::MultiSigSpent:
+    case TransactionRecord::MultiSigSpentOther:
         return COLOR_UNCONFIRMED;
     default:
         break;

@@ -318,9 +318,9 @@ public:
     /* 
      *  for shared wallet
      */
-    bool IsMineShare(const CTxIn& txin) const;
-    bool IsMineShare(const CTxOut& txout) const;
-    bool IsMineShare(const CTransaction& tx) const;
+    bool IsMyShare(const CTxIn& txin) const;
+    bool IsMyShare(const CTxOut& txout) const;
+    bool IsMyShare(const CTransaction& tx) const;
     int64 GetSharedBalance() const;
     int64 GetSharedUnconfirmedBalance() const;
     int64 GetSharedImmatureBalance() const;
@@ -328,9 +328,25 @@ public:
     {
         if (!MoneyRange(txout.nValue))
             throw std::runtime_error("CWallet::GetSharedCredit() : value out of range");
-        return (IsMineShare(txout) ? txout.nValue : 0);
+        return (IsMyShare(txout) ? txout.nValue : 0);
     }
-    
+
+    bool IsFromMyShare(const CTransaction& tx) const
+    {
+        return (GetShareDebit(tx) > 0);
+    }
+    int64 GetShareDebit(const CTransaction& tx) const
+    {
+        int64 nDebit = 0;
+        BOOST_FOREACH(const CTxIn& txin, tx.vin)
+        {
+            nDebit += GetShareDebit(txin);
+            if (!MoneyRange(nDebit))
+                throw std::runtime_error("CWallet::GetDebit() : value out of range");
+        }
+        return nDebit;
+    }
+    int64 GetShareDebit(const CTxIn& txin) const;
 };
 
 /** A key allocated from the key pool. */
