@@ -13,6 +13,9 @@
 #include "init.h"
 #include "coincontrol.h"
 
+#include "bitcoinrpc.h"
+using namespace json_spirit;
+
 #include <QMessageBox>
 #include <QTextDocument>
 #include <QScrollBar>
@@ -35,6 +38,8 @@ MultiSigDialog::MultiSigDialog(QWidget *parent) :
     ui->sendButton->setIcon(QIcon());
     ui->btnExportDraft->setIcon(QIcon());
     ui->btnImportDraft->setIcon(QIcon());
+    ui->btnExportAddr->setIcon(QIcon());
+    ui->btnImportAddr->setIcon(QIcon());
 #endif
 
     addEntry();
@@ -43,6 +48,8 @@ MultiSigDialog::MultiSigDialog(QWidget *parent) :
     connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clear()));
     connect(ui->btnExportDraft, SIGNAL(clicked()), this, SLOT(exportDraft()));
     connect(ui->btnImportDraft, SIGNAL(clicked()), this, SLOT(importDraft()));
+    connect(ui->btnExportAddr, SIGNAL(clicked()), this, SLOT(exportAddress()));
+    connect(ui->btnImportAddr, SIGNAL(clicked()), this, SLOT(importAddress()));
 
     fNewRecipientAllowed = true;
 
@@ -85,6 +92,15 @@ void MultiSigDialog::createRawTransaction()
 
     if(!model)
         return;
+
+    if ( !coinControl->HasSelected() )
+    {
+        QMessageBox::warning(this, tr("Send Coins"),
+            tr("The amount exceeds your balance."),
+            QMessageBox::Ok, QMessageBox::Ok);
+
+        return;
+    }
 
     for(int i = 0; i < ui->entries->count(); ++i)
     {
@@ -188,6 +204,104 @@ void MultiSigDialog::createRawTransaction()
     fNewRecipientAllowed = true;
 }
 
+bool writeString(const QString &filename, const QString& hex)
+{
+    QFile file(filename);
+    if(!file.open(QIODevice::WriteOnly | QIODevice::Text))
+        return false;
+    
+    QTextStream out(&file);
+    out << hex;
+    file.close();
+
+    return file.error() == QFile::NoError;
+}
+
+void MultiSigDialog::exportAddress()
+{
+    if ( currentIndex < 0 )
+        return;
+
+    QString s = ui->comboBoxAddrList->currentText();
+    CBitcoinAddress address(s.toStdString());
+    
+    CScript subscript;
+    CScriptID scriptID;
+    address.GetScriptID(scriptID);
+    pwalletMain->GetCScript(scriptID, subscript);
+
+    json_spirit::Object addrJson;
+    addrJson.push_back(json_spirit::Pair("address", address.ToString()));
+    addrJson.push_back(json_spirit::Pair("redeemScript", HexStr(subscript.begin(), subscript.end())));
+    std::string ss = json_spirit::write_string(json_spirit::Value(addrJson), false);
+    QString addrJsonStr = QString::fromStdString(ss);
+
+    QString filename = GUIUtil::getSaveFileName(
+            this,
+            tr("Save MultiSig Address"), QString(),
+            tr("MultiSig Address file (*.fma)"));
+
+    if (filename.isNull()) return;
+
+    if(!writeString(filename, addrJsonStr))
+    {
+        QMessageBox::critical(this, tr("Error exporting"), tr("Could not write to file %1.").arg(filename),
+                              QMessageBox::Abort, QMessageBox::Abort);
+    }
+}
+
+void MultiSigDialog::importAddress()
+{
+    QString filename = GUIUtil::getLoadFileName(
+            this,
+            tr("Load MultiSig Address"), QString(),
+            tr("MultiSig Address file (*.fma)"));
+
+    if (filename.isNull()) return;
+    
+    QFile file(filename);
+    if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return;
+
+    QString addrJsonStr;
+    QTextStream strin(&file);
+    strin >> addrJsonStr;
+
+    Value addrJsonV;
+    if (!json_spirit::read_string(addrJsonStr.toStdString(), addrJsonV))
+        return;
+
+    const json_spirit::Object& addrJson = addrJsonV.get_obj();
+    if (addrJson.empty())
+        return;
+
+    const json_spirit::Value& addressV = json_spirit::find_value(addrJson, "address");
+    const json_spirit::Value& scriptV  = json_spirit::find_value(addrJson, "redeemScript");
+
+    printf("importAddress redeemScript=%s\n", scriptV.get_str().c_str());
+    std::vector<unsigned char> scriptData(ParseHex(scriptV.get_str()));
+    CScript scriptPubKey(scriptData.begin(), scriptData.end());
+
+    if (!IsStandard(scriptPubKey))
+        return;
+
+    //if ( !scriptPubKey.IsPayToScriptHash())
+        //return;
+
+    CScriptID innerID = scriptPubKey.GetID();
+    CBitcoinAddress address(innerID);
+    if ( addressV.get_str() == address.ToString() )
+    {
+        printf("importAddress %s\n", address.ToString().c_str());
+        pwalletMain->AddCScript(scriptPubKey);
+        std::string strAccount;
+        pwalletMain->SetAddressBookName(innerID, strAccount);
+        updateAddressList();
+        updateAddressBalance();
+        updateAddressDetail();
+    }
+}
+
 void MultiSigDialog::importDraft()
 {
     QString filename = GUIUtil::getLoadFileName(
@@ -236,19 +350,6 @@ void MultiSigDialog::importDraft()
     editEnable(false);
 }
 
-bool writeHex(const QString &filename, const QString& hex)
-{
-    QFile file(filename);
-    if(!file.open(QIODevice::WriteOnly | QIODevice::Text))
-        return false;
-    
-    QTextStream out(&file);
-    out << hex;
-    file.close();
-
-    return file.error() == QFile::NoError;
-}
-
 void MultiSigDialog::exportDraft()
 {
     if ( !isTxCreate )
@@ -267,7 +368,7 @@ void MultiSigDialog::exportDraft()
         ss << (*rawTx);
         QString hex = QString::fromStdString(HexStr(ss.begin(), ss.end()));
 
-        if(!writeHex(filename, hex))
+        if(!writeString(filename, hex))
         {
             QMessageBox::critical(this, tr("Error exporting"), tr("Could not write to file %1.").arg(filename),
                                   QMessageBox::Abort, QMessageBox::Abort);
@@ -639,7 +740,8 @@ void MultiSigDialog::updateAddressDetail()
     txnouttype whichType;
     int nRequired;
     ExtractDestinations(subscript, whichType, addresses, nRequired);
-    
+
+    ui->labelRequireAddr2->setText(QString(""));
     int i = 0;
     BOOST_FOREACH(const CTxDestination& addr, addresses){
         if ( i == 0 )
@@ -664,6 +766,7 @@ void MultiSigDialog::handleAddrSelectionChanged(int idx)
     if ( currentIndex != idx )
     {
         currentIndex = idx;
+        updateAddressBalance();
         updateAddressDetail();
     }
 }

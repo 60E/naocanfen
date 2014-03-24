@@ -48,6 +48,8 @@ public slots:
     void exportDraft();
     void importDraft();
     void editEnable(bool enable);
+    void exportAddress();
+    void importAddress();
     
     SendCoinsEntry *addEntry();
     void updateRemoveEnabled();

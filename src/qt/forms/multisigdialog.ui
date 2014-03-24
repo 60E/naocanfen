@@ -360,7 +360,7 @@
                   <string>Import draft transaction with other's signature</string>
                  </property>
                  <property name="text">
-                  <string>Import Draft</string>
+                  <string>Import Raw Tx</string>
                  </property>
                  <property name="icon">
                   <iconset resource="../bitcoin.qrc">
@@ -572,7 +572,7 @@
         <string>Export draft transaction with my signature</string>
        </property>
        <property name="text">
-        <string>Export Draft</string>
+        <string>Export Raw Tx</string>
        </property>
        <property name="icon">
         <iconset resource="../bitcoin.qrc">

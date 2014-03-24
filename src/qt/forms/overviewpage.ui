@@ -209,7 +209,7 @@
                </font>
               </property>
               <property name="text">
-               <string>Shared Wallet</string>
+               <string>MultiSig</string>
               </property>
              </widget>
             </item>

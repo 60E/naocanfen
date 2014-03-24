@@ -1464,7 +1464,10 @@ bool CWallet::SetAddressBookName(const CTxDestination& address, const string& st
 {
     std::map<CTxDestination, std::string>::iterator mi = mapAddressBook.find(address);
     mapAddressBook[address] = strName;
-    NotifyAddressBookChanged(this, address, strName, ::IsMine(*this, address), (mi == mapAddressBook.end()) ? CT_NEW : CT_UPDATED);
+    bool fMine = ::IsMine(*this, address);
+    if ( ::IsMyShare(*this, address) )
+        fMine = false;
+    NotifyAddressBookChanged(this, address, strName, fMine, (mi == mapAddressBook.end()) ? CT_NEW : CT_UPDATED);
     if (!fFileBacked)
         return false;
     return CWalletDB(strWalletFile).WriteName(CBitcoinAddress(address).ToString(), strName);
