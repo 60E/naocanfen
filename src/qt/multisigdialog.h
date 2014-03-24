@@ -46,6 +46,9 @@ public slots:
     void reject();
     void accept();
     void exportDraft();
+    void importDraft();
+    void editEnable(bool enable);
+    
     SendCoinsEntry *addEntry();
     void updateRemoveEnabled();
     void setSharedBalance(qint64 balance, qint64 unconfirmedBalance, qint64 immatureBalance);
@@ -63,6 +66,7 @@ private:
     bool isTxCreate;
     bool isComplete;
     void createRawTransaction();
+    void sendRawTransaction();
 
     int currentIndex;
 

@@ -87,12 +87,18 @@
              <string notr="true">font-weight:bold;</string>
             </property>
             <property name="text">
-             <string>My MultiSig    </string>
+             <string/>
             </property>
            </widget>
           </item>
           <item>
            <widget class="QLabel" name="label">
+            <property name="font">
+             <font>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
             <property name="text">
              <string>Total balance:</string>
             </property>
@@ -113,6 +119,12 @@
           </item>
           <item>
            <widget class="QLabel" name="labelAddresses">
+            <property name="font">
+             <font>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
             <property name="text">
              <string>    Addresses:</string>
             </property>
@@ -120,8 +132,30 @@
           </item>
           <item>
            <widget class="QLabel" name="labelAddressesNum">
+            <property name="minimumSize">
+             <size>
+              <width>28</width>
+              <height>0</height>
+             </size>
+            </property>
             <property name="text">
              <string>0</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btnCreateAddr">
+            <property name="font">
+             <font>
+              <pointsize>8</pointsize>
+             </font>
+            </property>
+            <property name="text">
+             <string>New Address</string>
+            </property>
+            <property name="icon">
+             <iconset resource="../bitcoin.qrc">
+              <normaloff>:/icons/add</normaloff>:/icons/add</iconset>
             </property>
            </widget>
           </item>
@@ -141,7 +175,7 @@
          </layout>
         </item>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayoutCoinControl2" stretch="0,0,0">
+         <layout class="QHBoxLayout" name="horizontalLayoutCoinControl2" stretch="0,0,0,0,0">
           <property name="spacing">
            <number>8</number>
           </property>
@@ -157,7 +191,7 @@
              </font>
             </property>
             <property name="text">
-             <string>MultiSig Address</string>
+             <string>Address</string>
             </property>
             <property name="margin">
              <number>5</number>
@@ -195,6 +229,34 @@
             </property>
             <property name="maxVisibleItems">
              <number>20</number>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="btnExportAddr">
+            <property name="toolTip">
+             <string>Export MultiSig Address</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset resource="../bitcoin.qrc">
+              <normaloff>:/icons/export2</normaloff>:/icons/export2</iconset>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="btnImportAddr">
+            <property name="toolTip">
+             <string>Import MultiSig Address</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset resource="../bitcoin.qrc">
+              <normaloff>:/icons/import</normaloff>:/icons/import</iconset>
             </property>
            </widget>
           </item>
@@ -287,7 +349,7 @@
                 </layout>
                </item>
                <item>
-                <widget class="QPushButton" name="btnImportTransaction">
+                <widget class="QPushButton" name="btnImportDraft">
                  <property name="minimumSize">
                   <size>
                    <width>120</width>
@@ -328,28 +390,28 @@
                <item>
                 <widget class="QLabel" name="labelRequire">
                  <property name="text">
-                  <string>  </string>
+                  <string/>
                  </property>
                 </widget>
                </item>
                <item>
                 <widget class="QLabel" name="labelRequireAddr0">
                  <property name="text">
-                  <string>      </string>
+                  <string/>
                  </property>
                 </widget>
                </item>
                <item>
                 <widget class="QLabel" name="labelRequireAddr1">
                  <property name="text">
-                  <string>    </string>
+                  <string/>
                  </property>
                 </widget>
                </item>
                <item>
                 <widget class="QLabel" name="labelRequireAddr2">
                  <property name="text">
-                  <string>    </string>
+                  <string/>
                  </property>
                 </widget>
                </item>
@@ -402,7 +464,7 @@
         <x>0</x>
         <y>0</y>
         <width>828</width>
-        <height>176</height>
+        <height>160</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">

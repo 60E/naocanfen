@@ -34,6 +34,7 @@ MultiSigDialog::MultiSigDialog(QWidget *parent) :
     ui->clearButton->setIcon(QIcon());
     ui->sendButton->setIcon(QIcon());
     ui->btnExportDraft->setIcon(QIcon());
+    ui->btnImportDraft->setIcon(QIcon());
 #endif
 
     addEntry();
@@ -41,6 +42,7 @@ MultiSigDialog::MultiSigDialog(QWidget *parent) :
     connect(ui->addButton, SIGNAL(clicked()), this, SLOT(addEntry()));
     connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clear()));
     connect(ui->btnExportDraft, SIGNAL(clicked()), this, SLOT(exportDraft()));
+    connect(ui->btnImportDraft, SIGNAL(clicked()), this, SLOT(importDraft()));
 
     fNewRecipientAllowed = true;
 
@@ -180,11 +182,58 @@ void MultiSigDialog::createRawTransaction()
     case WalletModel::Aborted: // User aborted, nothing to do
         break;
     case WalletModel::OK:
-        //accept();
         isTxCreate = true;
         break;
     }
     fNewRecipientAllowed = true;
+}
+
+void MultiSigDialog::importDraft()
+{
+    QString filename = GUIUtil::getLoadFileName(
+            this,
+            tr("Load Fusioncoin Transaction"), QString(),
+            tr("Fusioncoin transaction file (*.ftx)"));
+
+    if (filename.isNull()) return;
+    
+    QFile file(filename);
+    if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return;
+
+    QString hex;
+    QTextStream hexin(&file);
+    hexin >> hex;
+
+    std::vector<unsigned char> txData(ParseHex(hex.toStdString()));
+    CTransaction tx;
+    CDataStream ssData(txData, SER_NETWORK, PROTOCOL_VERSION);
+    try {
+        ssData >> tx;
+    }
+    catch (std::exception &e) {
+        return;
+    }
+
+    clear();
+    for (unsigned int i = 0; i < tx.vout.size(); i++)
+    {
+        const CTxOut& txout = tx.vout[i];
+        std::vector<CTxDestination> addresses;
+        txnouttype whichType;
+        int nRequired;
+        if (!ExtractDestinations(txout.scriptPubKey, whichType, addresses, nRequired))
+            continue;
+        
+        SendCoinsRecipient rv;
+        rv.address = QString::fromStdString(CBitcoinAddress(addresses[0]).ToString());
+        rv.amount = txout.nValue;
+        pasteEntry(rv);
+    }
+    
+    *rawTx = tx;
+    isTxCreate = true;
+    editEnable(false);
 }
 
 bool writeHex(const QString &filename, const QString& hex)
@@ -210,7 +259,7 @@ void MultiSigDialog::exportDraft()
         QString filename = GUIUtil::getSaveFileName(
                 this,
                 tr("Save Fusioncoin Transaction"), QString(),
-                tr("Fusioncoin transaction file (*.txhex)"));
+                tr("Fusioncoin transaction file (*.ftx)"));
 
         if (filename.isNull()) return;
 
@@ -226,22 +275,113 @@ void MultiSigDialog::exportDraft()
     }
 }
 
+void MultiSigDialog::sendRawTransaction()
+{
+    uint256 hashTx = rawTx->GetHash();
+
+    bool fHave = false;
+    CCoinsViewCache &view = *pcoinsTip;
+    CCoins existingCoins;
+    {
+        fHave = view.GetCoins(hashTx, existingCoins);
+        if (!fHave) {
+            // push to local node
+            CValidationState state;
+            if (!rawTx->AcceptToMemoryPool(state, true, false))
+                return;
+                //throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX rejected");
+        }
+    }
+    if (fHave) {
+        return;
+        //if (existingCoins.nHeight < 1000000000)
+            //throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "transaction already in block chain");
+        // Not in block, but already in the memory pool; will drop
+        // through to re-relay it.
+    } else {
+        SyncWithWallets(hashTx, *rawTx, NULL, true);
+    }
+    RelayTransaction(*rawTx, hashTx);
+    clear();
+}
+
 void MultiSigDialog::on_sendButton_clicked()
 {
+    // if complete, send
+    if ( isTxCreate && isComplete )
+    {
+        sendRawTransaction();
+        return;
+    }
+    
     if ( !isTxCreate )
         createRawTransaction();
 
+    // if created, sign
     if ( isTxCreate )
     {
-        for(int i = 0; i < ui->entries->count(); ++i)
+        isComplete = true;
+        // Fetch previous transactions (inputs):
+        CCoinsView viewDummy;
+        CCoinsViewCache view(viewDummy);
         {
-            SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
-            if(entry)
-            {
-                entry->setFieldEnable(false);
+            LOCK(mempool.cs);
+            CCoinsViewCache &viewChain = *pcoinsTip;
+            CCoinsViewMemPool viewMempool(viewChain, mempool);
+            view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view
+
+            BOOST_FOREACH(const CTxIn& txin, rawTx->vin) {
+                const uint256& prevHash = txin.prevout.hash;
+                CCoins coins;
+                view.GetCoins(prevHash, coins); // this is certainly allowed to fail
             }
+
+            view.SetBackend(viewDummy); // switch back to avoid locking mempool for too long
         }
+
+        CTransaction txv(*rawTx);
+        // Sign what we can:
+        for (unsigned int i = 0; i < rawTx->vin.size(); i++)
+        {
+            CTxIn& txin = rawTx->vin[i];
+            CCoins coins;
+            if (!view.GetCoins(txin.prevout.hash, coins) || !coins.IsAvailable(txin.prevout.n))
+            {
+                isComplete = false;
+                continue;
+            }
+            const CScript& prevPubKey = coins.vout[txin.prevout.n].scriptPubKey;
+
+            txin.scriptSig.clear();
+            SignSignature(*pwalletMain, prevPubKey, *rawTx, i, SIGHASH_ALL);
+            txin.scriptSig = CombineSignatures(prevPubKey, *rawTx, i, txin.scriptSig, txv.vin[i].scriptSig);
+
+            if (!VerifyScript(txin.scriptSig, prevPubKey, *rawTx, i, SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC, 0))
+                isComplete = false;
+        }
+    
+        editEnable(false);
         ui->sendButton->setEnabled(false);
+    }
+
+    if ( isComplete )
+    {
+        ui->sendButton->setEnabled(true);
+        ui->sendButton->setText(tr("Send"));
+        ui->sendButton->setIcon(QIcon(":/icons/send"));
+    }
+}
+
+void MultiSigDialog::editEnable(bool enable)
+{
+    for(int i = 0; i < ui->entries->count(); ++i)
+    {
+        SendCoinsEntry *entry = qobject_cast<SendCoinsEntry*>(ui->entries->itemAt(i)->widget());
+        if(entry)
+        {
+            entry->setFieldEnable(enable);
+        }
+        ui->comboBoxAddrList->setEnabled(enable);
     }
 }
 
@@ -258,7 +398,11 @@ void MultiSigDialog::clear()
 
     ui->sendButton->setDefault(true);
     isTxCreate = false;
+    isComplete = false;
     ui->sendButton->setEnabled(true);
+    ui->comboBoxAddrList->setEnabled(true);
+    ui->sendButton->setText(tr("Sign"));
+    ui->sendButton->setIcon(QIcon(":/icons/edit"));
 }
 
 void MultiSigDialog::reject()
