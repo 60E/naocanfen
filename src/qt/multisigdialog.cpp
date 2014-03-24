@@ -12,6 +12,7 @@
 #include "base58.h"
 #include "init.h"
 #include "coincontrol.h"
+#include "createmultisigaddrdialog.h"
 
 #include "bitcoinrpc.h"
 using namespace json_spirit;
@@ -38,8 +39,7 @@ MultiSigDialog::MultiSigDialog(QWidget *parent) :
     ui->sendButton->setIcon(QIcon());
     ui->btnExportDraft->setIcon(QIcon());
     ui->btnImportDraft->setIcon(QIcon());
-    ui->btnExportAddr->setIcon(QIcon());
-    ui->btnImportAddr->setIcon(QIcon());
+    ui->btnCreateAddr->setIcon(QIcon());
 #endif
 
     addEntry();
@@ -50,6 +50,7 @@ MultiSigDialog::MultiSigDialog(QWidget *parent) :
     connect(ui->btnImportDraft, SIGNAL(clicked()), this, SLOT(importDraft()));
     connect(ui->btnExportAddr, SIGNAL(clicked()), this, SLOT(exportAddress()));
     connect(ui->btnImportAddr, SIGNAL(clicked()), this, SLOT(importAddress()));
+    connect(ui->btnCreateAddr, SIGNAL(clicked()), this, SLOT(createAddress()));
 
     fNewRecipientAllowed = true;
 
@@ -85,6 +86,20 @@ MultiSigDialog::~MultiSigDialog()
     delete ui;
 }
 
+void MultiSigDialog::createAddress()
+{
+    //if(!model)
+        //return;
+
+    CreateMultiSigAddrDialog dlg(this);
+    if(dlg.exec())
+    {
+        updateAddressList();
+        updateAddressBalance();
+        updateAddressDetail();
+    }
+}
+
 void MultiSigDialog::createRawTransaction()
 {
     QList<SendCoinsRecipient> recipients;
@@ -92,15 +107,6 @@ void MultiSigDialog::createRawTransaction()
 
     if(!model)
         return;
-
-    if ( !coinControl->HasSelected() )
-    {
-        QMessageBox::warning(this, tr("Send Coins"),
-            tr("The amount exceeds your balance."),
-            QMessageBox::Ok, QMessageBox::Ok);
-
-        return;
-    }
 
     for(int i = 0; i < ui->entries->count(); ++i)
     {
@@ -120,6 +126,15 @@ void MultiSigDialog::createRawTransaction()
 
     if(!valid || recipients.isEmpty())
     {
+        return;
+    }
+
+    if ( !coinControl->HasSelected() )
+    {
+        QMessageBox::warning(this, tr("Send Coins"),
+            tr("The amount exceeds your balance."),
+            QMessageBox::Ok, QMessageBox::Ok);
+
         return;
     }
 

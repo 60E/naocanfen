@@ -50,6 +50,7 @@ public slots:
     void editEnable(bool enable);
     void exportAddress();
     void importAddress();
+    void createAddress();
     
     SendCoinsEntry *addEntry();
     void updateRemoveEnabled();
