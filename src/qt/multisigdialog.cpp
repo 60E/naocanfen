@@ -51,6 +51,10 @@ MultiSigDialog::MultiSigDialog(QWidget *parent) :
     connect(ui->btnExportAddr, SIGNAL(clicked()), this, SLOT(exportAddress()));
     connect(ui->btnImportAddr, SIGNAL(clicked()), this, SLOT(importAddress()));
     connect(ui->btnCreateAddr, SIGNAL(clicked()), this, SLOT(createAddress()));
+    
+    connect(ui->btnSign0, SIGNAL(clicked()), this, SLOT(signAddress0()));
+    connect(ui->btnSign1, SIGNAL(clicked()), this, SLOT(signAddress1()));
+    connect(ui->btnSign2, SIGNAL(clicked()), this, SLOT(signAddress2()));
 
     fNewRecipientAllowed = true;
 
@@ -421,15 +425,23 @@ void MultiSigDialog::sendRawTransaction()
     clear();
 }
 
-void MultiSigDialog::on_sendButton_clicked()
+void MultiSigDialog::signAddress0()
 {
-    // if complete, send
-    if ( isTxCreate && isComplete )
-    {
-        sendRawTransaction();
-        return;
-    }
-    
+    signTransaction();
+}
+
+void MultiSigDialog::signAddress1()
+{
+    signTransaction();
+}
+
+void MultiSigDialog::signAddress2()
+{
+    signTransaction();
+}
+
+void MultiSigDialog::signTransaction()
+{
     if ( !isTxCreate )
         createRawTransaction();
 
@@ -483,8 +495,16 @@ void MultiSigDialog::on_sendButton_clicked()
     if ( isComplete )
     {
         ui->sendButton->setEnabled(true);
-        ui->sendButton->setText(tr("Send"));
-        ui->sendButton->setIcon(QIcon(":/icons/send"));
+    }
+}
+
+void MultiSigDialog::on_sendButton_clicked()
+{
+    // if complete, send
+    if ( isTxCreate && isComplete )
+    {
+        sendRawTransaction();
+        return;
     }
 }
 
@@ -515,10 +535,8 @@ void MultiSigDialog::clear()
     ui->sendButton->setDefault(true);
     isTxCreate = false;
     isComplete = false;
-    ui->sendButton->setEnabled(true);
+    ui->sendButton->setEnabled(false);
     ui->comboBoxAddrList->setEnabled(true);
-    ui->sendButton->setText(tr("Sign"));
-    ui->sendButton->setIcon(QIcon(":/icons/edit"));
 }
 
 void MultiSigDialog::reject()
@@ -756,15 +774,35 @@ void MultiSigDialog::updateAddressDetail()
     int nRequired;
     ExtractDestinations(subscript, whichType, addresses, nRequired);
 
-    ui->labelRequireAddr2->setText(QString(""));
+    ui->labelRequireAddr2->setVisible(false);
+    ui->btnSign2->setVisible(false);
     int i = 0;
     BOOST_FOREACH(const CTxDestination& addr, addresses){
         if ( i == 0 )
+        {
             ui->labelRequireAddr0->setText(QString::fromStdString(CBitcoinAddress(addr).ToString()));
+            if ( IsMine(*pwalletMain, addr) )
+                ui->btnSign0->setVisible(true);
+            else
+                ui->btnSign0->setVisible(false);
+        }
         else if ( i == 1 )
+        {
             ui->labelRequireAddr1->setText(QString::fromStdString(CBitcoinAddress(addr).ToString()));
+            if ( IsMine(*pwalletMain, addr) )
+                ui->btnSign1->setVisible(true);
+            else
+                ui->btnSign1->setVisible(false);
+        }
         else if ( i == 2 )
+        {
+            ui->labelRequireAddr2->setVisible(true);
             ui->labelRequireAddr2->setText(QString::fromStdString(CBitcoinAddress(addr).ToString()));
+            if ( IsMine(*pwalletMain, addr) )
+                ui->btnSign2->setVisible(true);
+            else
+                ui->btnSign2->setVisible(false);
+        }
         else
             break;
         

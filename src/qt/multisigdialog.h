@@ -51,6 +51,11 @@ public slots:
     void exportAddress();
     void importAddress();
     void createAddress();
+
+    void signAddress0();
+    void signAddress1();
+    void signAddress2();
+    void signTransaction();
     
     SendCoinsEntry *addEntry();
     void updateRemoveEnabled();
