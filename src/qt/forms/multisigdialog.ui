@@ -447,6 +447,13 @@
                   </widget>
                  </item>
                  <item>
+                  <widget class="QLabel" name="labelIsSign0">
+                   <property name="text">
+                    <string>Unsigned</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
                   <spacer name="horizontalSpacer_4">
                    <property name="orientation">
                     <enum>Qt::Horizontal</enum>
@@ -503,6 +510,13 @@
                   </widget>
                  </item>
                  <item>
+                  <widget class="QLabel" name="labelIsSign1">
+                   <property name="text">
+                    <string>Signed</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
                   <spacer name="horizontalSpacer_5">
                    <property name="orientation">
                     <enum>Qt::Horizontal</enum>
@@ -555,6 +569,13 @@
                    </property>
                    <property name="toolButtonStyle">
                     <enum>Qt::ToolButtonTextBesideIcon</enum>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QLabel" name="labelIsSign2">
+                   <property name="text">
+                    <string/>
                    </property>
                   </widget>
                  </item>

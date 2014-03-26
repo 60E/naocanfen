@@ -77,6 +77,10 @@ private:
     void sendRawTransaction();
 
     int currentIndex;
+    int nCurrentIn;
+
+    std::vector<std::string> containAddresses;
+    void checkRawTransaction();
 
 private slots:
     void on_sendButton_clicked();

@@ -59,6 +59,7 @@ MultiSigDialog::MultiSigDialog(QWidget *parent) :
     fNewRecipientAllowed = true;
 
     currentIndex = -1;
+    nCurrentIn = 0;
     isTxCreate = false;
     isComplete = false;
     connect(ui->comboBoxAddrList, SIGNAL(currentIndexChanged(int)), this, SLOT(handleAddrSelectionChanged(int)));
@@ -349,6 +350,45 @@ void MultiSigDialog::importDraft()
     }
 
     clear();
+    for (unsigned int i = 0; i < tx.vin.size(); i++)
+    {
+        const CTxIn& txin = tx.vin[i];
+        {
+            LOCK(pwalletMain->cs_wallet);
+            std::map<uint256, CWalletTx>::const_iterator mi = pwalletMain->mapWallet.find(txin.prevout.hash);
+            if (mi != pwalletMain->mapWallet.end())
+            {
+                const CWalletTx& prev = (*mi).second;
+                if (txin.prevout.n < prev.vout.size())
+                {
+                    const CTxOut& txout = prev.vout[txin.prevout.n];
+                    std::vector<CTxDestination> addresses;
+                    txnouttype whichType;
+                    int nRequired;
+                    if (!ExtractDestinations(txout.scriptPubKey, whichType, addresses, nRequired))
+                        continue;
+
+                    QString addrStr = QString::fromStdString(CBitcoinAddress(addresses[0]).ToString());
+                    for ( int j = 0; j < ui->comboBoxAddrList->count(); j ++ )
+                    {
+                        if ( addrStr == ui->comboBoxAddrList->itemData(j).toString() )
+                        {
+                            nCurrentIn = i;
+                            ui->comboBoxAddrList->setCurrentIndex(j);
+                            if ( currentIndex != j )
+                            {
+                                currentIndex = j;
+                                updateAddressBalance();
+                                updateAddressDetail();
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
     for (unsigned int i = 0; i < tx.vout.size(); i++)
     {
         const CTxOut& txout = tx.vout[i];
@@ -357,9 +397,13 @@ void MultiSigDialog::importDraft()
         int nRequired;
         if (!ExtractDestinations(txout.scriptPubKey, whichType, addresses, nRequired))
             continue;
-        
+
+        QString addrStr = QString::fromStdString(CBitcoinAddress(addresses[0]).ToString());
+        if ( addrStr == ui->comboBoxAddrList->itemData(ui->comboBoxAddrList->currentIndex()).toString() )
+            continue;
+            
         SendCoinsRecipient rv;
-        rv.address = QString::fromStdString(CBitcoinAddress(addresses[0]).ToString());
+        rv.address = addrStr;
         rv.amount = txout.nValue;
         pasteEntry(rv);
     }
@@ -367,6 +411,7 @@ void MultiSigDialog::importDraft()
     *rawTx = tx;
     isTxCreate = true;
     editEnable(false);
+    checkRawTransaction();
 }
 
 void MultiSigDialog::exportDraft()
@@ -493,9 +538,9 @@ void MultiSigDialog::signTransaction()
     }
 
     if ( isComplete )
-    {
         ui->sendButton->setEnabled(true);
-    }
+
+    checkRawTransaction();
 }
 
 void MultiSigDialog::on_sendButton_clicked()
@@ -537,6 +582,8 @@ void MultiSigDialog::clear()
     isComplete = false;
     ui->sendButton->setEnabled(false);
     ui->comboBoxAddrList->setEnabled(true);
+    nCurrentIn = 0;
+    checkRawTransaction();
 }
 
 void MultiSigDialog::reject()
@@ -700,7 +747,7 @@ void MultiSigDialog::updateAddressList()
             bool fMyShare = IsMyShare(*wallet, address.Get());
             if ( fMyShare )
             {
-                ui->comboBoxAddrList->addItem(QString::fromStdString(address.ToString()), QVariant(""));
+                ui->comboBoxAddrList->addItem(QString::fromStdString(address.ToString()), QVariant(QString::fromStdString(address.ToString())));
             }
         }
     }
@@ -774,42 +821,106 @@ void MultiSigDialog::updateAddressDetail()
     int nRequired;
     ExtractDestinations(subscript, whichType, addresses, nRequired);
 
+    containAddresses.clear();
+    int i;
+    for ( i = 0; i < addresses.size(); ++ i )
+        containAddresses.push_back(CBitcoinAddress(addresses[i]).ToString());
+
     ui->labelRequireAddr2->setVisible(false);
-    ui->btnSign2->setVisible(false);
-    int i = 0;
-    BOOST_FOREACH(const CTxDestination& addr, addresses){
+    for ( i = 0; i < addresses.size(); ++ i )
+    {
         if ( i == 0 )
-        {
-            ui->labelRequireAddr0->setText(QString::fromStdString(CBitcoinAddress(addr).ToString()));
-            if ( IsMine(*pwalletMain, addr) )
-                ui->btnSign0->setVisible(true);
-            else
-                ui->btnSign0->setVisible(false);
-        }
+            ui->labelRequireAddr0->setText(QString::fromStdString(CBitcoinAddress(addresses[i]).ToString()));
         else if ( i == 1 )
-        {
-            ui->labelRequireAddr1->setText(QString::fromStdString(CBitcoinAddress(addr).ToString()));
-            if ( IsMine(*pwalletMain, addr) )
-                ui->btnSign1->setVisible(true);
-            else
-                ui->btnSign1->setVisible(false);
-        }
+            ui->labelRequireAddr1->setText(QString::fromStdString(CBitcoinAddress(addresses[i]).ToString()));
         else if ( i == 2 )
         {
             ui->labelRequireAddr2->setVisible(true);
-            ui->labelRequireAddr2->setText(QString::fromStdString(CBitcoinAddress(addr).ToString()));
-            if ( IsMine(*pwalletMain, addr) )
-                ui->btnSign2->setVisible(true);
-            else
-                ui->btnSign2->setVisible(false);
+            ui->labelRequireAddr2->setText(QString::fromStdString(CBitcoinAddress(addresses[i]).ToString()));
         }
-        else
-            break;
-        
-        i += 1;
     }
     
     ui->labelRequire->setText(QString("Require ") + QString::number(nRequired) + QString(" of ") + QString::number(i) + QString(" signatures ") );
+    checkRawTransaction();
+}
+
+void MultiSigDialog::checkRawTransaction()
+{
+    bool IsSign[3] = {0};
+    if ( isTxCreate )
+    {
+        // Fetch previous transactions (inputs):
+        CCoinsView viewDummy;
+        CCoinsViewCache view(viewDummy);
+        {
+            LOCK(mempool.cs);
+            CCoinsViewCache &viewChain = *pcoinsTip;
+            CCoinsViewMemPool viewMempool(viewChain, mempool);
+            view.SetBackend(viewMempool); // temporarily switch cache backend to db+mempool view
+
+            BOOST_FOREACH(const CTxIn& txin, rawTx->vin) {
+                const uint256& prevHash = txin.prevout.hash;
+                CCoins coins;
+                view.GetCoins(prevHash, coins); // this is certainly allowed to fail
+            }
+
+            view.SetBackend(viewDummy); // switch back to avoid locking mempool for too long
+        }
+
+        CTransaction txv(*rawTx);
+        // Sign what we can:
+        CTxIn& txin = rawTx->vin[nCurrentIn];
+        CCoins coins;
+        if (view.GetCoins(txin.prevout.hash, coins))
+        {
+            const CScript& prevPubKey = coins.vout[txin.prevout.n].scriptPubKey;
+            isComplete = VerifyMultiSigScript(txin.scriptSig, prevPubKey, *rawTx, nCurrentIn, 0, IsSign);
+        }
+        if ( isComplete )
+            ui->sendButton->setEnabled(true);
+    }
+
+    QLineEdit *labelRequireAddr[3];
+    QToolButton *btnSign[3];
+    QLabel *labelIsSign[3];
+
+    labelRequireAddr[0] = ui->labelRequireAddr0;labelRequireAddr[1] = ui->labelRequireAddr1;labelRequireAddr[2] = ui->labelRequireAddr2;
+    btnSign[0] = ui->btnSign0;btnSign[1] = ui->btnSign1;btnSign[2] = ui->btnSign2;
+    labelIsSign[0] = ui->labelIsSign0;labelIsSign[1] = ui->labelIsSign1;labelIsSign[2] = ui->labelIsSign2;
+    
+    ui->btnSign2->setVisible(false);
+    ui->labelIsSign2->setVisible(false);
+    for ( int i = 0; i < containAddresses.size(); ++ i )
+    {
+        CBitcoinAddress addr(containAddresses[i]);
+        labelRequireAddr[i]->setText(QString::fromStdString(CBitcoinAddress(addr).ToString()));
+        
+        if ( IsMine(*pwalletMain, addr.Get()) && !IsSign[i])
+        {
+            btnSign[i]->setVisible(true);
+            labelIsSign[i]->setVisible(false);
+        }
+        else
+        {
+            btnSign[i]->setVisible(false);
+            if ( isTxCreate )
+            {
+                labelIsSign[i]->setVisible(true);
+                if ( IsSign[i] )
+                {
+                    labelIsSign[i]->setStyleSheet("color:green");
+                    labelIsSign[i]->setText("Signed");
+                }
+                else
+                {
+                    labelIsSign[i]->setStyleSheet("color:red");
+                    labelIsSign[i]->setText("Unsigned");
+                }
+            }
+            else
+                labelIsSign[i]->setVisible(false);
+        }
+    }
 }
 
 void MultiSigDialog::handleAddrSelectionChanged(int idx)
