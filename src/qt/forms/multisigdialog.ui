@@ -135,22 +135,6 @@
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="btnCreateAddr">
-            <property name="font">
-             <font>
-              <pointsize>8</pointsize>
-             </font>
-            </property>
-            <property name="text">
-             <string>New Address</string>
-            </property>
-            <property name="icon">
-             <iconset resource="../bitcoin.qrc">
-              <normaloff>:/icons/add</normaloff>:/icons/add</iconset>
-            </property>
-           </widget>
-          </item>
-          <item>
            <spacer name="horizontalSpacer_2">
             <property name="orientation">
              <enum>Qt::Horizontal</enum>
@@ -166,7 +150,7 @@
          </layout>
         </item>
         <item>
-         <layout class="QHBoxLayout" name="horizontalLayoutCoinControl2" stretch="0,0,0,0,0">
+         <layout class="QHBoxLayout" name="horizontalLayoutCoinControl2" stretch="0,0,0">
           <property name="spacing">
            <number>8</number>
           </property>
@@ -220,34 +204,6 @@
             </property>
             <property name="maxVisibleItems">
              <number>20</number>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="btnExportAddr">
-            <property name="toolTip">
-             <string>Export MultiSig Address</string>
-            </property>
-            <property name="text">
-             <string/>
-            </property>
-            <property name="icon">
-             <iconset resource="../bitcoin.qrc">
-              <normaloff>:/icons/export2</normaloff>:/icons/export2</iconset>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QToolButton" name="btnImportAddr">
-            <property name="toolTip">
-             <string>Import MultiSig Address</string>
-            </property>
-            <property name="text">
-             <string/>
-            </property>
-            <property name="icon">
-             <iconset resource="../bitcoin.qrc">
-              <normaloff>:/icons/import</normaloff>:/icons/import</iconset>
             </property>
            </widget>
           </item>
@@ -643,7 +599,7 @@
         <x>0</x>
         <y>0</y>
         <width>828</width>
-        <height>134</height>
+        <height>142</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">

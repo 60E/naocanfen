@@ -48,9 +48,6 @@ public slots:
     void exportDraft();
     void importDraft();
     void editEnable(bool enable);
-    void exportAddress();
-    void importAddress();
-    void createAddress();
 
     void signAddress0();
     void signAddress1();
@@ -88,6 +85,7 @@ private slots:
     void updateDisplayUnit();
 private slots:
     void handleAddrSelectionChanged(int idx);
+    void handleAddressBookChanged();
 };
 
 #endif // MULTISIGDIALOG_H

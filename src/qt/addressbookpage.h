@@ -53,6 +53,7 @@ private:
     QString returnValue;
     QSortFilterProxyModel *proxyModel;
     QMenu *contextMenu;
+    QMenu *contextMenuMultiSig;
     QAction *deleteAction; // to be able to explicitly disable it
     QString newAddressToSelect;
 
@@ -84,6 +85,10 @@ private slots:
     void contextualMenu(const QPoint &point);
     /** New entry/entries were added to address table */
     void selectNewAddress(const QModelIndex &parent, int begin, int /*end*/);
+
+    void exportAddress();
+    void importAddress();
+    void createAddress();
 
 signals:
     void signMessage(QString addr);

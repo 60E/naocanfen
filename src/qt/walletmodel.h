@@ -182,6 +182,8 @@ signals:
     // Asynchronous message notification
     void message(const QString &title, const QString &message, unsigned int style);
 
+    void addressBookChanged();
+
 public slots:
     /* Wallet status might have changed */
     void updateStatus();

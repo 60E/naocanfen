@@ -168,6 +168,7 @@ void WalletModel::updateAddressBook(const QString &address, const QString &label
 {
     if(addressTableModel)
         addressTableModel->updateEntry(address, label, isMine, status);
+    emit addressBookChanged();
 }
 
 bool WalletModel::validateAddress(const QString &address)

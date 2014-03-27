@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>518</width>
-    <height>147</height>
+    <height>157</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -61,7 +61,7 @@
    <item>
     <widget class="QLabel" name="label_5">
      <property name="text">
-      <string>You need to input your and other's publickeys to create a MultiSig address</string>
+      <string> You need y keys to create a x-of-y Multisig address</string>
      </property>
     </widget>
    </item>

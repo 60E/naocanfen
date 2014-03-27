@@ -48,9 +48,6 @@ MultiSigDialog::MultiSigDialog(QWidget *parent) :
     connect(ui->clearButton, SIGNAL(clicked()), this, SLOT(clear()));
     connect(ui->btnExportDraft, SIGNAL(clicked()), this, SLOT(exportDraft()));
     connect(ui->btnImportDraft, SIGNAL(clicked()), this, SLOT(importDraft()));
-    connect(ui->btnExportAddr, SIGNAL(clicked()), this, SLOT(exportAddress()));
-    connect(ui->btnImportAddr, SIGNAL(clicked()), this, SLOT(importAddress()));
-    connect(ui->btnCreateAddr, SIGNAL(clicked()), this, SLOT(createAddress()));
     
     connect(ui->btnSign0, SIGNAL(clicked()), this, SLOT(signAddress0()));
     connect(ui->btnSign1, SIGNAL(clicked()), this, SLOT(signAddress1()));
@@ -83,26 +80,13 @@ void MultiSigDialog::setModel(WalletModel *model)
         setSharedBalance(model->getSharedBalance(), model->getSharedUnconfirmedBalance(), model->getSharedImmatureBalance());
         connect(model, SIGNAL(sharedBalanceChanged(qint64, qint64, qint64)), this, SLOT(setSharedBalance(qint64, qint64, qint64)));
         connect(model->getOptionsModel(), SIGNAL(displayUnitChanged(int)), this, SLOT(updateDisplayUnit()));
+        connect(model, SIGNAL(addressBookChanged()), this, SLOT(handleAddressBookChanged()));
     }
 }
 
 MultiSigDialog::~MultiSigDialog()
 {
     delete ui;
-}
-
-void MultiSigDialog::createAddress()
-{
-    //if(!model)
-        //return;
-
-    CreateMultiSigAddrDialog dlg(this);
-    if(dlg.exec())
-    {
-        updateAddressList();
-        updateAddressBalance();
-        updateAddressDetail();
-    }
 }
 
 void MultiSigDialog::createRawTransaction()
@@ -235,91 +219,6 @@ bool writeString(const QString &filename, const QString& hex)
     file.close();
 
     return file.error() == QFile::NoError;
-}
-
-void MultiSigDialog::exportAddress()
-{
-    if ( currentIndex < 0 )
-        return;
-
-    QString s = ui->comboBoxAddrList->currentText();
-    CBitcoinAddress address(s.toStdString());
-    
-    CScript subscript;
-    CScriptID scriptID;
-    address.GetScriptID(scriptID);
-    pwalletMain->GetCScript(scriptID, subscript);
-
-    json_spirit::Object addrJson;
-    addrJson.push_back(json_spirit::Pair("address", address.ToString()));
-    addrJson.push_back(json_spirit::Pair("redeemScript", HexStr(subscript.begin(), subscript.end())));
-    std::string ss = json_spirit::write_string(json_spirit::Value(addrJson), false);
-    QString addrJsonStr = QString::fromStdString(ss);
-
-    QString filename = GUIUtil::getSaveFileName(
-            this,
-            tr("Save MultiSig Address"), QString(),
-            tr("MultiSig Address file (*.fma)"));
-
-    if (filename.isNull()) return;
-
-    if(!writeString(filename, addrJsonStr))
-    {
-        QMessageBox::critical(this, tr("Error exporting"), tr("Could not write to file %1.").arg(filename),
-                              QMessageBox::Abort, QMessageBox::Abort);
-    }
-}
-
-void MultiSigDialog::importAddress()
-{
-    QString filename = GUIUtil::getLoadFileName(
-            this,
-            tr("Load MultiSig Address"), QString(),
-            tr("MultiSig Address file (*.fma)"));
-
-    if (filename.isNull()) return;
-    
-    QFile file(filename);
-    if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
-        return;
-
-    QString addrJsonStr;
-    QTextStream strin(&file);
-    strin >> addrJsonStr;
-
-    Value addrJsonV;
-    if (!json_spirit::read_string(addrJsonStr.toStdString(), addrJsonV))
-        return;
-
-    const json_spirit::Object& addrJson = addrJsonV.get_obj();
-    if (addrJson.empty())
-        return;
-
-    const json_spirit::Value& addressV = json_spirit::find_value(addrJson, "address");
-    const json_spirit::Value& scriptV  = json_spirit::find_value(addrJson, "redeemScript");
-
-    printf("importAddress redeemScript=%s\n", scriptV.get_str().c_str());
-    std::vector<unsigned char> scriptData(ParseHex(scriptV.get_str()));
-    CScript scriptPubKey(scriptData.begin(), scriptData.end());
-
-    if (!IsStandard(scriptPubKey))
-        return;
-
-    //if ( !scriptPubKey.IsPayToScriptHash())
-        //return;
-
-    CScriptID innerID = scriptPubKey.GetID();
-    CBitcoinAddress address(innerID);
-    if ( addressV.get_str() == address.ToString() )
-    {
-        printf("importAddress %s\n", address.ToString().c_str());
-        pwalletMain->AddCScript(scriptPubKey);
-        std::string strAccount;
-        pwalletMain->SetAddressBookName(innerID, strAccount);
-        updateAddressList();
-        updateAddressBalance();
-        updateAddressDetail();
-    }
 }
 
 void MultiSigDialog::importDraft()
@@ -930,5 +829,13 @@ void MultiSigDialog::handleAddrSelectionChanged(int idx)
         updateAddressBalance();
         updateAddressDetail();
     }
+}
+
+void MultiSigDialog::handleAddressBookChanged()
+{
+    clear();
+    updateAddressList();
+    updateAddressBalance();
+    updateAddressDetail();
 }
 
