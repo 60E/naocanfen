@@ -903,6 +903,7 @@ void MultiSigDialog::checkRawTransaction()
         else
         {
             btnSign[i]->setVisible(false);
+            labelIsSign[i]->setVisible(false);
             if ( isTxCreate )
             {
                 labelIsSign[i]->setVisible(true);
@@ -911,22 +912,18 @@ void MultiSigDialog::checkRawTransaction()
                     labelIsSign[i]->setStyleSheet("color:green");
                     labelIsSign[i]->setText("Signed");
                 }
-                else
+                else if ( !isComplete )
                 {
                     labelIsSign[i]->setStyleSheet("color:red");
                     labelIsSign[i]->setText("Unsigned");
                 }
             }
-            else
-                labelIsSign[i]->setVisible(false);
         }
     }
 }
 
 void MultiSigDialog::handleAddrSelectionChanged(int idx)
 {
-    //QVariant v = ui->comboBoxAddrList->itemData(idx);
-
     if ( currentIndex != idx )
     {
         currentIndex = idx;

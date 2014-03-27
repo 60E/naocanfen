@@ -2153,6 +2153,7 @@ bool EvalMultiSigScript(vector<vector<unsigned char> >& stack, const CScript& sc
                     }
 
                     bool fSuccess = true;
+                    int okCount = 0;
                     for ( int n = 0; n < nKeysCount; ++ n )
                     {
                         for ( int m = 0; m < curSigsCount; ++ m )
@@ -2167,11 +2168,13 @@ bool EvalMultiSigScript(vector<vector<unsigned char> >& stack, const CScript& sc
 
                             if (fOk) {
                                 bIsSign[nKeysCount - 1 - n] = true;
+                                okCount += 1;
                             }
                         }
-                        if ( !bIsSign[nKeysCount - 1 - n] )
-                            fSuccess = false;
                     }
+
+                    if ( okCount < nSigsCount )
+                        fSuccess = false;
 
                     return fSuccess;
                 }
