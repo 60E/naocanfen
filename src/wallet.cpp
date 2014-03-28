@@ -1816,7 +1816,7 @@ set< set<CTxDestination> > CWallet::GetAddressGroupings()
 bool CWallet::SelectSharedCoins(int64 nTargetValue, set<pair<const CWalletTx*,unsigned int> >& setCoinsRet, int64& nValueRet, const CCoinControl* coinControl) const
 {
     vector<COutput> vCoins;
-    AvailableSharedCoins(vCoins, true, coinControl);
+    AvailableSharedCoins(vCoins, false, coinControl);
     
     // coin control -> return all selected outputs (we want all selected to go into the transaction for sure)
     if (coinControl && coinControl->HasSelected())

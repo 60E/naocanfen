@@ -90,6 +90,7 @@ MultiSigDialog::~MultiSigDialog()
     delete ui;
 }
 
+static CCoinControl* coinControlTx = new CCoinControl();
 void MultiSigDialog::createRawTransaction()
 {
     QList<SendCoinsRecipient> recipients;
@@ -161,7 +162,40 @@ void MultiSigDialog::createRawTransaction()
     }
 
     rawTx->SetNull();
-    WalletModel::SendCoinsReturn sendstatus = model->createRawTransaction(recipients, *rawTx, coinControl, true);
+    std::vector<COutPoint> vOutpoints;
+    coinControl->ListSelected(vOutpoints);
+    
+    CCoinControl* coinControlCur = coinControl;
+    // too many transactions
+    if ( vOutpoints.size() > 10 )
+    {
+        qint64 total = 0;
+        foreach(const SendCoinsRecipient &rcp, recipients)
+            total += rcp.amount;
+    
+        coinControlTx->SetNull();
+        int64 nValueRet = 0;
+        {
+            LOCK(pwalletMain->cs_wallet);
+            for ( int i = 0; i < vOutpoints.size(); ++ i )
+            {
+                std::map<uint256, CWalletTx>::const_iterator mi = pwalletMain->mapWallet.find(vOutpoints[i].hash);
+                if (mi != pwalletMain->mapWallet.end())
+                {
+                    const CWalletTx& prev = (*mi).second;
+                    const CTxOut& txout = prev.vout[vOutpoints[i].n];
+                    nValueRet += txout.nValue;
+                    coinControlTx->Select(vOutpoints[i]);
+                    if ( nValueRet > total )
+                        break;
+                }
+            }
+        }
+        
+        coinControlCur = coinControlTx;
+    }
+    
+    WalletModel::SendCoinsReturn sendstatus = model->createRawTransaction(recipients, *rawTx, coinControlCur, true);
     switch(sendstatus.status)
     {
     case WalletModel::InvalidAddress:
