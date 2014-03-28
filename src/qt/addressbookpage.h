@@ -87,7 +87,6 @@ private slots:
     void selectNewAddress(const QModelIndex &parent, int begin, int /*end*/);
 
     void exportAddress();
-    void importAddress();
     void createAddress();
 
 signals:

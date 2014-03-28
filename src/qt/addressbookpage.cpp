@@ -136,7 +136,6 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
     connect(ui->buttonBox, SIGNAL(accepted()), this, SLOT(accept()));
 
     connect(MultiSigExportAction, SIGNAL(triggered()), this, SLOT(exportAddress()));
-    //connect(ui->btnImportAddr, SIGNAL(clicked()), this, SLOT(importAddress()));
     connect(ui->newMultiSigAddress, SIGNAL(clicked()), this, SLOT(createAddress()));
 }
 
@@ -469,55 +468,6 @@ void AddressBookPage::exportAddress()
     {
         QMessageBox::critical(this, tr("Error exporting"), tr("Could not write to file %1.").arg(filename),
                               QMessageBox::Abort, QMessageBox::Abort);
-    }
-}
-
-void AddressBookPage::importAddress()
-{
-    QString filename = GUIUtil::getLoadFileName(
-            this,
-            tr("Load MultiSig Address"), QString(),
-            tr("MultiSig Address file (*.fma)"));
-
-    if (filename.isNull()) return;
-    
-    QFile file(filename);
-    if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
-        return;
-
-    QString addrJsonStr;
-    QTextStream strin(&file);
-    strin >> addrJsonStr;
-
-    Value addrJsonV;
-    if (!json_spirit::read_string(addrJsonStr.toStdString(), addrJsonV))
-        return;
-
-    const json_spirit::Object& addrJson = addrJsonV.get_obj();
-    if (addrJson.empty())
-        return;
-
-    const json_spirit::Value& addressV = json_spirit::find_value(addrJson, "address");
-    const json_spirit::Value& scriptV  = json_spirit::find_value(addrJson, "redeemScript");
-
-    printf("importAddress redeemScript=%s\n", scriptV.get_str().c_str());
-    std::vector<unsigned char> scriptData(ParseHex(scriptV.get_str()));
-    CScript scriptPubKey(scriptData.begin(), scriptData.end());
-
-    if (!IsStandard(scriptPubKey))
-        return;
-
-    //if ( !scriptPubKey.IsPayToScriptHash())
-        //return;
-
-    CScriptID innerID = scriptPubKey.GetID();
-    CBitcoinAddress address(innerID);
-    if ( addressV.get_str() == address.ToString() )
-    {
-        printf("importAddress %s\n", address.ToString().c_str());
-        pwalletMain->AddCScript(scriptPubKey);
-        std::string strAccount;
-        pwalletMain->SetAddressBookName(innerID, strAccount);
     }
 }
 

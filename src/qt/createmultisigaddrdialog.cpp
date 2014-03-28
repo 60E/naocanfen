@@ -9,8 +9,17 @@
 #include "init.h"
 #include "bitcoinrpc.h"
 
-#include <QDataWidgetMapper>
+using namespace json_spirit;
+
+#include <QSortFilterProxyModel>
+#include <QClipboard>
 #include <QMessageBox>
+#include <QMenu>
+#include <QTextDocument>
+#include <QScrollBar>
+#include <QFile>
+#include <QTextStream>
+#include <QDataWidgetMapper>
 
 CreateMultiSigAddrDialog::CreateMultiSigAddrDialog(QWidget *parent) :
     QDialog(parent),
@@ -23,6 +32,7 @@ CreateMultiSigAddrDialog::CreateMultiSigAddrDialog(QWidget *parent) :
 
     ui->comboBoxRequire->addItem(QString("1"), QVariant(1));
     ui->comboBoxRequire->addItem(QString("2"), QVariant(2));
+    ui->comboBoxRequire->addItem(QString("3"), QVariant(3));
     ui->comboBoxRequire->setCurrentIndex(1);
     
     ui->comboBoxTotal->addItem(QString("2"), QVariant(2));
@@ -31,7 +41,14 @@ CreateMultiSigAddrDialog::CreateMultiSigAddrDialog(QWidget *parent) :
     currentPubkeyNum = 2;
     connect(ui->comboBoxTotal, SIGNAL(currentIndexChanged(int)), this, SLOT(handleSelectionChanged(int)));
 
+    connect(ui->btnImport, SIGNAL(clicked()), this, SLOT(importAddress()));
+    
+    connect(ui->pubkeyEdit0, SIGNAL(textChanged( const QString &)), this, SLOT(onTextChanged0(const QString &)));
+    connect(ui->pubkeyEdit1, SIGNAL(textChanged( const QString &)), this, SLOT(onTextChanged1(const QString &)));
+    connect(ui->pubkeyEdit2, SIGNAL(textChanged( const QString &)), this, SLOT(onTextChanged2(const QString &)));
+    
     ui->pubkeyEdit2->setVisible(false);
+    ui->label2->setVisible(false);
 }
 
 CreateMultiSigAddrDialog::~CreateMultiSigAddrDialog()
@@ -117,21 +134,141 @@ void CreateMultiSigAddrDialog::handleSelectionChanged(int idx)
         currentPubkeyNum = num;
         if ( 3 == currentPubkeyNum )
         {
-            ui->comboBoxRequire->clear();
-            ui->comboBoxRequire->addItem(QString("1"), QVariant(1));
-            ui->comboBoxRequire->addItem(QString("2"), QVariant(2));
-            ui->comboBoxRequire->addItem(QString("3"), QVariant(3));
-            ui->comboBoxRequire->setCurrentIndex(1);
             ui->pubkeyEdit2->setVisible(true);
+            ui->label2->setVisible(true);
         }
         else
         {
-            ui->comboBoxRequire->clear();
-            ui->comboBoxRequire->addItem(QString("1"), QVariant(1));
-            ui->comboBoxRequire->addItem(QString("2"), QVariant(2));
-            ui->comboBoxRequire->setCurrentIndex(1);
             ui->pubkeyEdit2->setVisible(false);
+            ui->label2->setVisible(false);
         }
     }
+}
+
+void CreateMultiSigAddrDialog::onTextChanged0(const QString & text)
+{
+    onTextChanged(ui->label0, text);
+}
+
+void CreateMultiSigAddrDialog::onTextChanged1(const QString & text)
+{
+    onTextChanged(ui->label1, text);
+}
+
+void CreateMultiSigAddrDialog::onTextChanged2(const QString & text)
+{
+    onTextChanged(ui->label2, text);
+}
+
+void CreateMultiSigAddrDialog::onTextChanged(QLabel* label, const QString & text)
+{
+    const std::string& ks = text.toStdString();
+    if (IsHex(ks))
+    {
+        CPubKey vchPubKey(ParseHex(ks));
+        if (!vchPubKey.IsFullyValid())
+        {
+            return;
+        }
+
+        CBitcoinAddress address(vchPubKey.GetID());
+        label->setText(QString::fromStdString(address.ToString()));
+    }
+}
+
+void CreateMultiSigAddrDialog::importAddress()
+{
+    QString filename = GUIUtil::getLoadFileName(
+            this,
+            tr("Load MultiSig Address"), QString(),
+            tr("MultiSig Address file (*.fma)"));
+
+    if (filename.isNull()) return;
+    
+    QFile file(filename);
+    if(!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return;
+
+    QString addrJsonStr;
+    QTextStream strin(&file);
+    strin >> addrJsonStr;
+
+    Value addrJsonV;
+    if (!json_spirit::read_string(addrJsonStr.toStdString(), addrJsonV))
+        return;
+
+    const json_spirit::Object& addrJson = addrJsonV.get_obj();
+    if (addrJson.empty())
+        return;
+
+    const json_spirit::Value& addressV = json_spirit::find_value(addrJson, "address");
+    const json_spirit::Value& scriptV  = json_spirit::find_value(addrJson, "redeemScript");
+
+    printf("importAddress redeemScript=%s\n", scriptV.get_str().c_str());
+    std::vector<unsigned char> scriptData(ParseHex(scriptV.get_str()));
+    CScript scriptPubKey(scriptData.begin(), scriptData.end());
+
+    if (!IsStandard(scriptPubKey))
+        return;
+
+    //if ( !scriptPubKey.IsPayToScriptHash())
+        //return;
+
+    CScriptID innerID = scriptPubKey.GetID();
+    CBitcoinAddress address(innerID);
+    if ( addressV.get_str() != address.ToString() )
+        return;
+    
+    int nRequired = 0;
+    txnouttype typeRet = TX_NONSTANDARD;
+    std::vector<std::vector<unsigned char> > vSolutions;
+    if (!Solver(scriptPubKey, typeRet, vSolutions))
+        return;
+
+    if (typeRet != TX_MULTISIG)
+        return;
+
+    std::vector<std::string> vPubKeys;
+    nRequired = vSolutions.front()[0];
+    for (unsigned int i = 1; i < vSolutions.size()-1; i++)
+    {
+        CPubKey vchPubKey(vSolutions[i]);
+        vPubKeys.push_back(HexStr(vchPubKey));
+    }
+    
+
+    if ( vPubKeys.size() == 3 )
+    {
+        ui->comboBoxTotal->setCurrentIndex(1);
+        ui->pubkeyEdit2->setText(QString::fromStdString(vPubKeys[2]));
+        ui->pubkeyEdit1->setText(QString::fromStdString(vPubKeys[1]));
+        ui->pubkeyEdit0->setText(QString::fromStdString(vPubKeys[0]));
+    }
+    else if ( vPubKeys.size() == 2 )
+    {
+        ui->comboBoxTotal->setCurrentIndex(0);
+        ui->pubkeyEdit1->setText(QString::fromStdString(vPubKeys[1]));
+        ui->pubkeyEdit0->setText(QString::fromStdString(vPubKeys[0]));
+    }
+    else
+        return;
+    
+    if ( nRequired <= 3 && nRequired >= 1 )
+        ui->comboBoxRequire->setCurrentIndex(nRequired - 1);
+    else
+        return;
+    
+
+#if 0
+    CScriptID innerID = scriptPubKey.GetID();
+    CBitcoinAddress address(innerID);
+    if ( addressV.get_str() == address.ToString() )
+    {
+        printf("importAddress %s\n", address.ToString().c_str());
+        pwalletMain->AddCScript(scriptPubKey);
+        std::string strAccount;
+        pwalletMain->SetAddressBookName(innerID, strAccount);
+    }
+#endif
 }
 
