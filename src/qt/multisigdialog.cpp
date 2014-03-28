@@ -372,20 +372,23 @@ void MultiSigDialog::sendRawTransaction()
 
 void MultiSigDialog::signAddress0()
 {
-    signTransaction();
+    QString addrStr = ui->labelRequireAddr0->text();
+    signTransaction(&addrStr);
 }
 
 void MultiSigDialog::signAddress1()
 {
-    signTransaction();
+    QString addrStr = ui->labelRequireAddr1->text();
+    signTransaction(&addrStr);
 }
 
 void MultiSigDialog::signAddress2()
 {
-    signTransaction();
+    QString addrStr = ui->labelRequireAddr2->text();
+    signTransaction(&addrStr);
 }
 
-void MultiSigDialog::signTransaction()
+void MultiSigDialog::signTransaction(QString *addrStr)
 {
     if ( !isTxCreate )
         createRawTransaction();
@@ -412,6 +415,33 @@ void MultiSigDialog::signTransaction()
             view.SetBackend(viewDummy); // switch back to avoid locking mempool for too long
         }
 
+        bool fGivenKeys = false;
+        CBasicKeyStore tempKeystore;
+        if ( addrStr )
+        {
+            CBitcoinAddress address(addrStr->toStdString());
+            CKeyID keyID;
+            if (address.GetKeyID(keyID))
+            {
+                CKey vchSecret;
+                if (pwalletMain->GetKey(keyID, vchSecret))
+                {
+                    fGivenKeys = true;
+                    tempKeystore.AddKey(vchSecret);
+
+                    QString s = ui->comboBoxAddrList->currentText();
+                    CBitcoinAddress address(s.toStdString());
+                    CScriptID scriptID;
+                    address.GetScriptID(scriptID);
+                    CScript redeemScript;
+                    pwalletMain->GetCScript(scriptID, redeemScript);
+                    tempKeystore.AddCScript(redeemScript);
+                }
+            }
+        }
+        
+        const CKeyStore& keystore = ((fGivenKeys || !pwalletMain) ? tempKeystore : *pwalletMain);
+
         CTransaction txv(*rawTx);
         // Sign what we can:
         for (unsigned int i = 0; i < rawTx->vin.size(); i++)
@@ -426,7 +456,7 @@ void MultiSigDialog::signTransaction()
             const CScript& prevPubKey = coins.vout[txin.prevout.n].scriptPubKey;
 
             txin.scriptSig.clear();
-            SignSignature(*pwalletMain, prevPubKey, *rawTx, i, SIGHASH_ALL);
+            SignSignature(keystore, prevPubKey, *rawTx, i, SIGHASH_ALL);
             txin.scriptSig = CombineSignatures(prevPubKey, *rawTx, i, txin.scriptSig, txv.vin[i].scriptSig);
 
             if (!VerifyScript(txin.scriptSig, prevPubKey, *rawTx, i, SCRIPT_VERIFY_P2SH | SCRIPT_VERIFY_STRICTENC, 0))

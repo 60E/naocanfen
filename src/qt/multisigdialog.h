@@ -52,7 +52,7 @@ public slots:
     void signAddress0();
     void signAddress1();
     void signAddress2();
-    void signTransaction();
+    void signTransaction(QString *addrStr = NULL);
     
     SendCoinsEntry *addEntry();
     void updateRemoveEnabled();
