@@ -95,7 +95,7 @@ void CreateMultiSigAddrDialog::create()
             return;
         }
     }
-
+/*
     if ( 0 == myKeyNum )
     {
         QMessageBox::warning(this, windowTitle(),
@@ -103,10 +103,11 @@ void CreateMultiSigAddrDialog::create()
             QMessageBox::Ok, QMessageBox::Ok);
         return;
     }
+    */
     if ( total == myKeyNum )
     {
         QMessageBox::warning(this, windowTitle(),
-            tr("All public keys belong this wallet!"),
+            tr("All public keys belong to this wallet!"),
             QMessageBox::Ok, QMessageBox::Ok);
         return;
     }

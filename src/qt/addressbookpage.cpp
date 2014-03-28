@@ -112,7 +112,7 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
     else if(tab == SendingTab)
         contextMenu->addAction(verifyMessageAction);
 
-    QAction *MultiSigExportAction = new QAction(tr("Export Complete Address"), this);
+    QAction *MultiSigExportAction = new QAction(tr("Export MultiSig Address"), this);
     contextMenuMultiSig = new QMenu();
     contextMenuMultiSig->addAction(copyAddressAction);
     contextMenuMultiSig->addAction(copyLabelAction);
