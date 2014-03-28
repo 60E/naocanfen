@@ -49,6 +49,7 @@ CreateMultiSigAddrDialog::CreateMultiSigAddrDialog(QWidget *parent) :
     
     ui->pubkeyEdit2->setVisible(false);
     ui->label2->setVisible(false);
+    updatePromptText();
 }
 
 CreateMultiSigAddrDialog::~CreateMultiSigAddrDialog()
@@ -127,6 +128,17 @@ void CreateMultiSigAddrDialog::cancel()
     reject();
 }
 
+void CreateMultiSigAddrDialog::updatePromptText()
+{
+    int nRequired = ui->comboBoxRequire->itemData(ui->comboBoxRequire->currentIndex()).toInt();
+    int total = ui->comboBoxTotal->itemData(ui->comboBoxTotal->currentIndex()).toInt();
+
+    QString text = QString("You need ") + QString::number(total) + QString(" keys to create a ") 
+        + QString::number(nRequired) + QString("-of-") + QString::number(total) + QString(" MultiSig address");
+
+    ui->labelPromptText->setText(text);
+}
+
 void CreateMultiSigAddrDialog::handleSelectionChanged(int idx)
 {
     int num = idx + 2;
@@ -144,6 +156,7 @@ void CreateMultiSigAddrDialog::handleSelectionChanged(int idx)
             ui->label2->setVisible(false);
         }
     }
+    updatePromptText();
 }
 
 void CreateMultiSigAddrDialog::onTextChanged0(const QString & text)
@@ -163,6 +176,7 @@ void CreateMultiSigAddrDialog::onTextChanged2(const QString & text)
 
 void CreateMultiSigAddrDialog::onTextChanged(QLabel* label, const QString & text)
 {
+    label->setText("");
     const std::string& ks = text.toStdString();
     if (IsHex(ks))
     {

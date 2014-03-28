@@ -29,6 +29,7 @@ public slots:
     void onTextChanged1(const QString & text);
     void onTextChanged2(const QString & text);
     void importAddress();
+    void updatePromptText();
 
 private:
     Ui::CreateMultiSigAddrDialog *ui;

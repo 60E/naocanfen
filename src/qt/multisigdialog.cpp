@@ -829,28 +829,36 @@ void MultiSigDialog::checkRawTransaction()
         CBitcoinAddress addr(containAddresses[i]);
         labelRequireAddr[i]->setText(QString::fromStdString(CBitcoinAddress(addr).ToString()));
         
-        if ( IsMine(*pwalletMain, addr.Get()) && !IsSign[i])
+        if ( IsMine(*pwalletMain, addr.Get()) )
         {
-            btnSign[i]->setVisible(true);
-            labelIsSign[i]->setVisible(false);
+            if ( !IsSign[i] )
+            {
+                btnSign[i]->setVisible(true);
+                labelIsSign[i]->setVisible(false);
+            }
+            else
+            {
+                btnSign[i]->setVisible(false);
+                labelIsSign[i]->setVisible(true);
+                labelIsSign[i]->setStyleSheet("color:green");
+                labelIsSign[i]->setText("Signed");
+            }
         }
         else
         {
             btnSign[i]->setVisible(false);
-            labelIsSign[i]->setVisible(false);
-            if ( isTxCreate )
+            labelIsSign[i]->setVisible(true);
+            if ( isTxCreate && IsSign[i])
             {
-                labelIsSign[i]->setVisible(true);
-                if ( IsSign[i] )
-                {
-                    labelIsSign[i]->setStyleSheet("color:green");
-                    labelIsSign[i]->setText("Signed");
-                }
-                else if ( !isComplete )
-                {
-                    labelIsSign[i]->setStyleSheet("color:red");
-                    labelIsSign[i]->setText("Unsigned");
-                }
+                labelIsSign[i]->setStyleSheet("color:green");
+                labelIsSign[i]->setText("Signed");
+            }
+            else if ( isTxCreate && isComplete )
+                labelIsSign[i]->setText("");
+            else
+            {
+                labelIsSign[i]->setStyleSheet("color:red");
+                labelIsSign[i]->setText("Not in local wallet");
             }
         }
     }
