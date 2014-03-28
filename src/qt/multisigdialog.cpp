@@ -60,6 +60,7 @@ MultiSigDialog::MultiSigDialog(QWidget *parent) :
     isTxCreate = false;
     isComplete = false;
     connect(ui->comboBoxAddrList, SIGNAL(currentIndexChanged(int)), this, SLOT(handleAddrSelectionChanged(int)));
+    ui->sendButton->setEnabled(false);
 }
 
 void MultiSigDialog::setModel(WalletModel *model)

@@ -87,6 +87,7 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
     QAction *showQRCodeAction = new QAction(ui->showQRCode->text(), this);
     QAction *signMessageAction = new QAction(ui->signMessage->text(), this);
     QAction *verifyMessageAction = new QAction(ui->verifyMessage->text(), this);
+    QAction *copyPubKeyAction = new QAction(tr("Copy &Public Key"), this);
     deleteAction = new QAction(ui->deleteAddress->text(), this);
 
     // Build context menu
@@ -103,7 +104,10 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
     contextMenu->addAction(showQRCodeAction);
 #endif
     if(tab == ReceivingTab)
+    {
         contextMenu->addAction(signMessageAction);
+        contextMenu->addAction(copyPubKeyAction);
+    }
     else if(tab == SendingTab)
         contextMenu->addAction(verifyMessageAction);
 
@@ -137,6 +141,7 @@ AddressBookPage::AddressBookPage(Mode mode, Tabs tab, QWidget *parent) :
 
     connect(MultiSigExportAction, SIGNAL(triggered()), this, SLOT(exportAddress()));
     connect(ui->newMultiSigAddress, SIGNAL(clicked()), this, SLOT(createAddress()));
+    connect(copyPubKeyAction, SIGNAL(triggered()), this, SLOT(on_copyPubKey_clicked()));
 }
 
 AddressBookPage::~AddressBookPage()
@@ -197,6 +202,33 @@ void AddressBookPage::setOptionsModel(OptionsModel *optionsModel)
 void AddressBookPage::on_copyAddress_clicked()
 {
     GUIUtil::copyEntryData(ui->tableView, AddressTableModel::Address);
+}
+
+void AddressBookPage::on_copyPubKey_clicked()
+{
+    QModelIndexList selection = ui->tableView->selectionModel()->selectedRows(AddressTableModel::Address);
+    if(!selection.isEmpty())
+    {
+        QString addrStr = selection.at(0).data(Qt::EditRole).toString();
+        CBitcoinAddress address(addrStr.toStdString());
+        CKeyID keyID;
+        if ( !address.GetKeyID(keyID) )
+        {
+            QMessageBox::warning(this, windowTitle(),
+                tr("Address \"%1\" doesn't have public key ").arg(addrStr),
+                QMessageBox::Ok, QMessageBox::Ok);
+            return;
+        }
+        CPubKey vchPubKey;
+        if ( !pwalletMain->GetPubKey(keyID, vchPubKey))
+        {
+            QMessageBox::warning(this, windowTitle(),
+                tr("Address \"%1\" doesn't have public key ").arg(addrStr),
+                QMessageBox::Ok, QMessageBox::Ok);
+            return;
+        }
+        GUIUtil::setClipboard(QString::fromStdString(HexStr(vchPubKey)));
+    }
 }
 
 void AddressBookPage::onCopyLabelAction()

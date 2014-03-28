@@ -78,6 +78,8 @@ private slots:
     void onEditAction();
     /** Export button clicked */
     void on_exportButton_clicked();
+    /** Copy public key of currently selected address to clipboard */
+    void on_copyPubKey_clicked();
 
     /** Set button states based on selected tab and selection */
     void selectionChanged();
