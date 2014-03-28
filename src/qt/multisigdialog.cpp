@@ -653,6 +653,7 @@ void MultiSigDialog::setSharedBalance(qint64 balance, qint64 unconfirmedBalance,
     ui->labelBalance->setText(BitcoinUnits::formatWithUnit(unit, balance));
     updateAddressList();
     updateAddressBalance();
+    checkRawTransaction();
 }
 
 void MultiSigDialog::updateDisplayUnit()
@@ -817,9 +818,12 @@ void MultiSigDialog::checkRawTransaction()
     labelRequireAddr[0] = ui->labelRequireAddr0;labelRequireAddr[1] = ui->labelRequireAddr1;labelRequireAddr[2] = ui->labelRequireAddr2;
     btnSign[0] = ui->btnSign0;btnSign[1] = ui->btnSign1;btnSign[2] = ui->btnSign2;
     labelIsSign[0] = ui->labelIsSign0;labelIsSign[1] = ui->labelIsSign1;labelIsSign[2] = ui->labelIsSign2;
-    
-    ui->btnSign2->setVisible(false);
-    ui->labelIsSign2->setVisible(false);
+
+    for ( int i = 0; i < 3 ; i ++ )
+    {
+        btnSign[i]->setVisible(false);
+        labelIsSign[i]->setVisible(false);
+    }
     for ( int i = 0; i < containAddresses.size(); ++ i )
     {
         CBitcoinAddress addr(containAddresses[i]);
