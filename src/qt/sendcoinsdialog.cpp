@@ -72,6 +72,15 @@ SendCoinsDialog::SendCoinsDialog(QWidget *parent) :
     ui->labelCoinControlLowOutput->addAction(clipboardLowOutputAction);
     ui->labelCoinControlChange->addAction(clipboardChangeAction);
 
+    ui->lineEditMsg->setVisible(false);
+    ui->lineEditMsg->setMaxLength(244);
+    ui->labelFee->setVisible(false);
+    ui->amountEditFee->setVisible(false);
+    ui->comboBoxMsgType->addItem(tr("Null"), QVariant(""));
+    ui->comboBoxMsgType->addItem(tr("PlainText"), QVariant(""));
+    //ui->comboBoxMsgType->addItem(tr("Advertise"), QVariant(""));
+    connect(ui->comboBoxMsgType, SIGNAL(currentIndexChanged(int)), this, SLOT(handleMsgTypeSelectionChanged(int)));
+
     fNewRecipientAllowed = true;
 }
 
@@ -168,11 +177,12 @@ void SendCoinsDialog::on_sendButton_clicked()
         return;
     }
 
+    QString txmsg = ui->lineEditMsg->text();
     WalletModel::SendCoinsReturn sendstatus;
     if (!model->getOptionsModel() || !model->getOptionsModel()->getCoinControlFeatures())
-        sendstatus = model->sendCoins(recipients);
+        sendstatus = model->sendCoins(recipients, txmsg);
     else
-        sendstatus = model->sendCoins(recipients, CoinControlDialog::coinControl);
+        sendstatus = model->sendCoins(recipients, txmsg, CoinControlDialog::coinControl);
     switch(sendstatus.status)
     {
     case WalletModel::InvalidAddress:
@@ -234,6 +244,7 @@ void SendCoinsDialog::clear()
     updateRemoveEnabled();
 
     ui->sendButton->setDefault(true);
+    resetMessage();
 }
 
 void SendCoinsDialog::reject()
@@ -533,6 +544,39 @@ void SendCoinsDialog::coinControlUpdateLabels()
         ui->labelCoinControlAutomaticallySelected->show();
         ui->widgetCoinControl->hide();
         ui->labelCoinControlInsuffFunds->hide();
+    }
+}
+
+void SendCoinsDialog::resetMessage()
+{
+    ui->lineEditMsg->setVisible(false);
+    ui->lineEditMsg->setText("");
+    ui->labelFee->setVisible(false);
+    ui->amountEditFee->setVisible(false);
+    ui->comboBoxMsgType->setCurrentIndex(0);
+}
+
+void SendCoinsDialog::handleMsgTypeSelectionChanged(int idx)
+{
+    switch(idx)
+    {
+    case 0:
+        ui->lineEditMsg->setVisible(false);
+        ui->labelFee->setVisible(false);
+        ui->amountEditFee->setVisible(false);
+        break;
+    case 1:
+        ui->lineEditMsg->setVisible(true);
+        ui->labelFee->setVisible(false);
+        ui->amountEditFee->setVisible(false);
+        break;
+    case 2:
+        ui->lineEditMsg->setVisible(true);
+        ui->labelFee->setVisible(true);
+        ui->amountEditFee->setVisible(true);
+        break;
+    default:
+        break;
     }
 }
 
