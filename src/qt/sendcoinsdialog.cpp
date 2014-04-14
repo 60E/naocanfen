@@ -155,8 +155,20 @@ void SendCoinsDialog::on_sendButton_clicked()
         formatted.append(tr("<b>%1</b> to %2 (%3)").arg(BitcoinUnits::formatWithUnit(BitcoinUnits::BTC, rcp.amount), rcp.label.toHtmlEscaped(), rcp.address));
 #endif
     }
-
+    
     fNewRecipientAllowed = false;
+
+    QString txmsg = ui->lineEditMsg->text();
+    if ( std::strlen(txmsg.toStdString().c_str()) > 244 )
+    {
+        QMessageBox::question(this, tr("Message error"),
+                              tr("Message length exceeds the limit (244 bytes)!"),
+              QMessageBox::Cancel,
+              QMessageBox::Cancel);
+
+        fNewRecipientAllowed = true;
+        return;
+    }
 
     QMessageBox::StandardButton retval = QMessageBox::question(this, tr("Confirm send coins"),
                           tr("Are you sure you want to send %1?").arg(formatted.join(tr(" and "))),
@@ -177,7 +189,6 @@ void SendCoinsDialog::on_sendButton_clicked()
         return;
     }
 
-    QString txmsg = ui->lineEditMsg->text();
     WalletModel::SendCoinsReturn sendstatus;
     if (!model->getOptionsModel() || !model->getOptionsModel()->getCoinControlFeatures())
         sendstatus = model->sendCoins(recipients, txmsg);

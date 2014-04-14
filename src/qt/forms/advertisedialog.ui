@@ -26,6 +26,9 @@
      <property name="text">
       <string/>
      </property>
+     <property name="maxLength">
+      <number>244</number>
+     </property>
      <property name="placeholderText">
       <string>Input richtext (244 bytes limit)</string>
      </property>

@@ -71,7 +71,18 @@ void AdvertiseDialog::send()
 
     if (!retval)
         return;
-    
+
+    QString txmsg = ui->lineEdit->text();
+    if ( std::strlen(txmsg.toStdString().c_str()) > 244 )
+    {
+        QMessageBox::question(this, tr("Send error"),
+                              tr("Text length exceeds the limit (244 bytes)!"),
+              QMessageBox::Cancel,
+              QMessageBox::Cancel);
+
+        return;
+    }
+
     {
         LOCK2(cs_main, wallet->cs_wallet);
 

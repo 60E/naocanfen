@@ -9,12 +9,19 @@
 #include "transactionfilterproxy.h"
 #include "guiutil.h"
 #include "guiconstants.h"
+#include "bitcoinrpc.h"
+#include "init.h"
+#include "main.h"
+#include "base58.h"
+#include "smalldata.h"
 
 #include "advertisedialog.h"
 #include <QAbstractItemDelegate>
 #include <QPainter>
 #include <QStandardItemModel>
 #include <QPalette>
+
+using namespace json_spirit;
 
 #define DECORATION_SIZE 64
 #define NUM_ITEMS 3
@@ -115,22 +122,10 @@ OverviewPage::OverviewPage(QWidget *parent) :
 
     connect(ui->listTransactions, SIGNAL(clicked(QModelIndex)), this, SLOT(handleTransactionClicked(QModelIndex)));
 
-    // init "out of sync" warning labels
-    ui->labelWalletStatus->setText("(" + tr("out of sync") + ")");
-    ui->labelSharedWalletStatus->setText("(" + tr("out of sync") + ")");
-    ui->labelTransactionsStatus->setText("(" + tr("out of sync") + ")");
-
-    // start with displaying the "out of sync" warnings
-    showOutOfSyncWarning(true);
-
     QPalette Pal(palette());
     Pal.setColor(QPalette::Background, QColor(200,200,200));
     ui->frameAd->setAutoFillBackground(true);
     ui->frameAd->setPalette(Pal);
-
-    QLabel *labelRankArray[16];
-    QLabel *labelMsgArray[16];
-    QLabel *labelFeeArray[16];
 
     labelRankArray[0] = ui->labelRank0;labelRankArray[1] = ui->labelRank1;labelRankArray[2] = ui->labelRank2;labelRankArray[3] = ui->labelRank3;
     labelRankArray[4] = ui->labelRank4;labelRankArray[5] = ui->labelRank5;labelRankArray[6] = ui->labelRank6;labelRankArray[7] = ui->labelRank7;
@@ -158,6 +153,14 @@ OverviewPage::OverviewPage(QWidget *parent) :
         labelFeeArray[i+1]->setPalette(Pal);
     }
     connect(ui->btnAddAD, SIGNAL(clicked()), this, SLOT(addAdvertisement()));
+
+    // init "out of sync" warning labels
+    ui->labelWalletStatus->setText("(" + tr("out of sync") + ")");
+    ui->labelSharedWalletStatus->setText("(" + tr("out of sync") + ")");
+    ui->labelTransactionsStatus->setText("(" + tr("out of sync") + ")");
+
+    // start with displaying the "out of sync" warnings
+    showOutOfSyncWarning(true);
 }
 
 void OverviewPage::handleTransactionClicked(const QModelIndex &index)
@@ -273,6 +276,7 @@ void OverviewPage::showOutOfSyncWarning(bool fShow)
     ui->labelWalletStatus->setVisible(fShow);
     ui->labelSharedWalletStatus->setVisible(fShow);
     ui->labelTransactionsStatus->setVisible(fShow);
+    updateAdvertisement();
 }
 
 void OverviewPage::addAdvertisement()
@@ -281,6 +285,28 @@ void OverviewPage::addAdvertisement()
     dlg.setModel(walletModel);
     if(dlg.exec())
     {
+    }
+}
+
+void OverviewPage::updateAdvertisement()
+{
+    adManager.load();
+    std::vector<CAdTx> adTxList;
+    adManager.getAdList(adTxList);
+
+    int i;
+    for ( i = 0; i < 15; ++ i )
+    {
+        if ( i < adTxList.size() )
+        {
+            labelMsgArray[i + 1]->setText(QString::fromStdString(adTxList[i].adText));
+            labelFeeArray[i + 1]->setText(QString::number((double)adTxList[i].GetFeeCur() / COIN, 'f', 6));
+        }
+        else
+        {
+            labelMsgArray[i + 1]->setText("");
+            labelFeeArray[i + 1]->setText("");
+        }
     }
 }
 
