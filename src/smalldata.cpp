@@ -229,7 +229,7 @@ bool CAdManager::getAdList(std::vector<CAdTx> &adTxList, int max)
         int size = vAdList.size() > max ? max : vAdList.size();
         adTxList.insert(adTxList.end(), vAdList.begin(), vAdList.begin() + size);
     }
-
+#if 0
     if ( adTxList.size() < 15 )
     {
         CAdTx adDef;
@@ -247,6 +247,7 @@ bool CAdManager::getAdList(std::vector<CAdTx> &adTxList, int max)
         //adDef.adText = "<a href=\"http://fusioncoin.org/\">FSC & DOGE Merged Mining Pool</a><br/><font color=\"#008800\">PPLNS 1% Fee!</font>";
         adTxList.push_back(adDef);
     }
+#endif
     return true;
 }
 

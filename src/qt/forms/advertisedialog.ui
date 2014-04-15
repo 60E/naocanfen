@@ -17,7 +17,7 @@
    <item>
     <widget class="QLabel" name="label">
      <property name="text">
-      <string>Advertise</string>
+      <string>Advertisement ( Expires after 10000 confirmations )</string>
      </property>
     </widget>
    </item>

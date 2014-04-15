@@ -300,12 +300,14 @@ void OverviewPage::updateAdvertisement()
         if ( i < adTxList.size() )
         {
             labelMsgArray[i + 1]->setText(QString::fromStdString(adTxList[i].adText));
-            labelFeeArray[i + 1]->setText(QString::number((double)adTxList[i].GetFeeCur() / COIN, 'f', 6));
+            labelFeeArray[i + 1]->setText(QString::number((double)adTxList[i].nFee / COIN, 'f', 4));
+            labelRankArray[i + 1]->setText(QString::number(nBestHeight - adTxList[i].nHeight));
         }
         else
         {
             labelMsgArray[i + 1]->setText("");
             labelFeeArray[i + 1]->setText("");
+            labelRankArray[i + 1]->setText("");
         }
     }
 }
