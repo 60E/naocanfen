@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>624</width>
+    <width>682</width>
     <height>481</height>
    </rect>
   </property>
@@ -550,7 +550,7 @@
                <enum>Qt::LeftToRight</enum>
               </property>
               <property name="text">
-               <string>Message</string>
+               <string>Advertisement</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignCenter</set>
@@ -719,6 +719,12 @@
             </item>
             <item row="2" column="1">
              <widget class="QLabel" name="labelAd2">
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>44</height>
+               </size>
+              </property>
               <property name="text">
                <string>&lt;a href=&quot;http://fusioncoin.org/&quot;&gt;FSC &amp; DOGE Merged Mining Pool&lt;/a&gt;&lt;br/&gt;&lt;font color=&quot;#008800&quot;&gt;PPLNS 1% Fee!&lt;/font&gt;</string>
               </property>
@@ -765,8 +771,14 @@
             </item>
             <item row="4" column="1">
              <widget class="QLabel" name="labelAd4">
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>44</height>
+               </size>
+              </property>
               <property name="text">
-               <string>&lt;a href=&quot;http://fusioncoin.org/&quot;&gt;FSCPay: Payment Processor&lt;/a&gt;</string>
+               <string>&lt;a href=&quot;http://fusioncoin.org/&quot;&gt;Hi&lt;/a&gt;</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignCenter</set>
@@ -784,7 +796,7 @@
               <property name="maximumSize">
                <size>
                 <width>16777215</width>
-                <height>16777215</height>
+                <height>44</height>
                </size>
               </property>
               <property name="text">
@@ -825,11 +837,11 @@
               <property name="maximumSize">
                <size>
                 <width>16777215</width>
-                <height>36</height>
+                <height>44</height>
                </size>
               </property>
               <property name="text">
-               <string>&lt;font color=&quot;#FF0000&quot;&gt;BTC-E.COM&lt;/font&gt;&lt;br/&gt;&lt;a href=&quot;http://fusioncoin.org/&quot;&gt;Cryptocurrency Exchange&lt;/a&gt;</string>
+               <string>&lt;font color=&quot;#FF0000&quot;&gt;FSC-E.COM&lt;/font&gt;&lt;br/&gt;&lt;a href=&quot;http://fusioncoin.org/&quot;&gt;Cryptocurrency Exchange&lt;/a&gt;</string>
               </property>
               <property name="alignment">
                <set>Qt::AlignCenter</set>
@@ -876,6 +888,12 @@
             </item>
             <item row="5" column="1">
              <widget class="QLabel" name="labelAd5">
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>44</height>
+               </size>
+              </property>
               <property name="text">
                <string>Hello world!</string>
               </property>
@@ -892,6 +910,12 @@
             </item>
             <item row="6" column="1">
              <widget class="QLabel" name="labelAd6">
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>44</height>
+               </size>
+              </property>
               <property name="text">
                <string/>
               </property>
@@ -908,6 +932,12 @@
             </item>
             <item row="8" column="1">
              <widget class="QLabel" name="labelAd8">
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>44</height>
+               </size>
+              </property>
               <property name="text">
                <string/>
               </property>
@@ -924,6 +954,12 @@
             </item>
             <item row="9" column="1">
              <widget class="QLabel" name="labelAd9">
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>44</height>
+               </size>
+              </property>
               <property name="text">
                <string/>
               </property>
@@ -940,6 +976,12 @@
             </item>
             <item row="10" column="1">
              <widget class="QLabel" name="labelAd10">
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>44</height>
+               </size>
+              </property>
               <property name="text">
                <string/>
               </property>
@@ -956,6 +998,12 @@
             </item>
             <item row="11" column="1">
              <widget class="QLabel" name="labelAd11">
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>44</height>
+               </size>
+              </property>
               <property name="text">
                <string/>
               </property>
@@ -972,6 +1020,12 @@
             </item>
             <item row="12" column="1">
              <widget class="QLabel" name="labelAd12">
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>44</height>
+               </size>
+              </property>
               <property name="text">
                <string/>
               </property>
@@ -988,6 +1042,12 @@
             </item>
             <item row="13" column="1">
              <widget class="QLabel" name="labelAd13">
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>44</height>
+               </size>
+              </property>
               <property name="text">
                <string/>
               </property>
@@ -1004,6 +1064,12 @@
             </item>
             <item row="14" column="1">
              <widget class="QLabel" name="labelAd14">
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>44</height>
+               </size>
+              </property>
               <property name="text">
                <string/>
               </property>
@@ -1020,6 +1086,12 @@
             </item>
             <item row="15" column="1">
              <widget class="QLabel" name="labelAd15">
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>44</height>
+               </size>
+              </property>
               <property name="text">
                <string/>
               </property>
@@ -1234,11 +1306,14 @@
               <item>
                <widget class="QToolButton" name="btnAddAD">
                 <property name="text">
-                 <string/>
+                 <string>Publish</string>
                 </property>
                 <property name="icon">
                  <iconset resource="../bitcoin.qrc">
-                  <normaloff>:/icons/add</normaloff>:/icons/add</iconset>
+                  <normaloff>:/icons/edit</normaloff>:/icons/edit</iconset>
+                </property>
+                <property name="toolButtonStyle">
+                 <enum>Qt::ToolButtonTextBesideIcon</enum>
                 </property>
                </widget>
               </item>
