@@ -927,9 +927,9 @@ bool AppInit2(boost::thread_group& threadGroup)
                     return InitError(_("Incorrect or no genesis block found. Wrong datadir for network?"));
 
                 #if !defined(QT_GUI)
-                fAdEnabled = GetBoolArg("-adenable", false);
+                fAdEnabled = GetBoolArg("-enableAD", false);
                 #else
-                fAdEnabled = GetBoolArg("-adenable", true);
+                fAdEnabled = GetBoolArg("-enableAD", true);
                 #endif
 
                 // Initialize the block index (no-op if non-empty database was already loaded)
