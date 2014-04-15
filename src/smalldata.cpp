@@ -17,7 +17,7 @@ using namespace boost;
 #include "db.h"
 #include "txdb.h"
 
-bool fAdEnabled;
+bool fAdEnabled = false;
 
 static unsigned char pchSmallDataHeader1[] = { 0xfa, 0xce, SMALLDATA_TYPE_PLAINTEXT, 0, 0} ;
 static unsigned char pchSmallDataHeader2[] = { 0xfa, 0xce, SMALLDATA_TYPE_BROADCAST, 0, 0} ;
