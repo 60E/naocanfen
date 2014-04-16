@@ -121,6 +121,9 @@ OverviewPage::OverviewPage(QWidget *parent) :
     ui->listTransactions->setAttribute(Qt::WA_MacShowFocusRect, false);
 
     connect(ui->listTransactions, SIGNAL(clicked(QModelIndex)), this, SLOT(handleTransactionClicked(QModelIndex)));
+    connect(ui->labelAd1, SIGNAL(linkActivated(const QString&)), this, SLOT(handleAdLinkClicked(const QString&)));
+                                                                            
+
 
     QPalette Pal(palette());
     Pal.setColor(QPalette::Background, QColor(200,200,200));
@@ -286,6 +289,13 @@ void OverviewPage::addAdvertisement()
     if(dlg.exec())
     {
     }
+}
+
+void OverviewPage::handleAdLinkClicked(const QString &link)
+{
+  QMessageBox::StandardButton reply;
+  reply = QMessageBox::question(this, "Open Link", link,
+                                QMessageBox::Yes|QMessageBox::No);  
 }
 
 void OverviewPage::updateAdvertisement()
